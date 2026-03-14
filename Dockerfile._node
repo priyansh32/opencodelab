@@ -1,5 +1,5 @@
 # Stage 1: Build Golang executable
-FROM golang:1.20.5-alpine3.18 AS builder
+FROM golang:alpine AS builder
 WORKDIR /app
 
 COPY ./sandboxes .
@@ -9,7 +9,7 @@ RUN go mod download
 RUN go build -o runner ./node/sandbox.go
 
 # Stage 2: Build Sandbox Image
-FROM node:18.16-alpine3.18
+FROM node:alpine
 WORKDIR /app
 
 COPY --from=builder /app/runner .

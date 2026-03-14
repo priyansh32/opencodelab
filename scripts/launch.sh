@@ -1,81 +1,93 @@
 #!/bin/bash
 
-# use this script to launch the dev environment
+# use this script to launch the containerized dev environment
 
 set -euo pipefail
 
-if ! docker network inspect opencodelab-dev >/dev/null 2>&1; then
-  docker network create opencodelab-dev >/dev/null
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is required but not installed."
+  exit 1
 fi
 
-ensure_container () {
-  local name="$1"
-  shift
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker daemon is not running or not accessible."
+  exit 1
+fi
 
-  local status
-  status=$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo "")
-
-  if [[ "$status" == "running" ]]; then
-    return 0
-  elif [[ -n "$status" ]]; then
-    docker start "$name" >/dev/null
-  else
-    docker run -d --name "$name" "$@" >/dev/null
-  fi
-}
-
-ensure_container mq-dev --network opencodelab-dev -p 15672:15672 -p 5672:5672 rabbitmq:3.12-management-alpine
-ensure_container db-dev --network opencodelab-dev -p 27017:27017 mongo:7.0
-ensure_container redis-dev --network opencodelab-dev -p 6379:6379 redis:7.0-alpine3.18
-
-wait_for_port () {
-  local name="$1"
-  local port="$2"
-  echo "Waiting for $name on port $port..."
-  until (echo >"/dev/tcp/127.0.0.1/$port") >/dev/null 2>&1; do
-    sleep 0.5
-  done
-}
-
-wait_for_port "RabbitMQ" 5672
-wait_for_port "MongoDB" 27017
-wait_for_port "Redis" 6379
-
-compute_dependency_hash () {
-  if command -v sha256sum >/dev/null 2>&1; then
-    if [[ -f package-lock.json ]]; then
-      sha256sum package.json package-lock.json | sha256sum | awk '{print $1}'
-    else
-      sha256sum package.json | awk '{print $1}'
-    fi
-  else
-    if [[ -f package-lock.json ]]; then
-      shasum -a 256 package.json package-lock.json | shasum -a 256 | awk '{print $1}'
-    else
-      shasum -a 256 package.json | awk '{print $1}'
+# WSL shells can inherit Docker config that references a helper binary
+# not present in PATH. Fall back to anonymous pulls for public images.
+default_docker_config="${HOME}/.docker/config.json"
+temp_docker_config=""
+if [[ -f "$default_docker_config" ]]; then
+  creds_store="$(sed -nE 's/.*"credsStore"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' "$default_docker_config" | head -n1)"
+  if [[ -n "${creds_store}" ]]; then
+    helper_binary="docker-credential-${creds_store}"
+    if ! command -v "$helper_binary" >/dev/null 2>&1; then
+      export DOCKER_CONFIG
+      DOCKER_CONFIG="$(mktemp -d)"
+      temp_docker_config="$DOCKER_CONFIG"
+      printf '{\"auths\":{}}\n' > "${DOCKER_CONFIG}/config.json"
+      echo "Docker credential helper ${helper_binary} not found; using temporary anonymous Docker config for this run."
     fi
   fi
+fi
+
+cleanup() {
+  if [[ -n "$temp_docker_config" ]] && [[ -d "$temp_docker_config" ]]; then
+    rm -rf "$temp_docker_config"
+  fi
 }
+trap cleanup EXIT
 
-ensure_node_dependencies () {
-  local deps_hash_file=".node_modules.depshash"
-  local current_hash
-  local previous_hash=""
-
-  current_hash="$(compute_dependency_hash)"
-
-  if [[ -f "$deps_hash_file" ]]; then
-    previous_hash="$(cat "$deps_hash_file")"
+service_running() {
+  local service="$1"
+  local cid
+  cid="$(docker compose ps -q "$service" 2>/dev/null || true)"
+  if [[ -z "$cid" ]]; then
+    return 1
   fi
 
-  if [[ ! -d node_modules ]] || [[ "$current_hash" != "$previous_hash" ]]; then
-    npm install
-    current_hash="$(compute_dependency_hash)"
-  fi
-
-  printf '%s\n' "$current_hash" > "$deps_hash_file"
+  [[ "$(docker inspect -f '{{.State.Status}}' "$cid")" == "running" ]]
 }
 
-ensure_node_dependencies
+service_healthy() {
+  local service="$1"
+  local cid
+  cid="$(docker compose ps -q "$service" 2>/dev/null || true)"
+  if [[ -z "$cid" ]]; then
+    return 1
+  fi
 
-npm run dev
+  [[ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$cid")" == "healthy" ]]
+}
+
+echo "Starting full stack with Docker Compose..."
+DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build -d
+
+echo "Waiting for services to become ready ..."
+for _ in $(seq 1 120); do
+  if service_running nginx \
+    && service_running app-server \
+    && service_running polling-server \
+    && service_running node-sandbox \
+    && service_running python-sandbox \
+    && service_healthy redis-server \
+    && service_healthy rabbitmq-server \
+    && service_healthy database; then
+    echo "Stack is up."
+    echo "API:        http://localhost/"
+    echo "Polling:    http://localhost/consumer?correlationID=<id>"
+    echo "Status UI:  http://localhost/status-ui"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "Gateway did not become ready in time."
+echo "Recent compose status:"
+docker compose ps
+
+echo "Recent app-server logs:"
+docker compose logs --tail=100 app-server || true
+
+exit 1

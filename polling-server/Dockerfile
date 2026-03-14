@@ -1,5 +1,5 @@
 # Stage 1: Build the Go code
-FROM golang:1.20.5-alpine3.18 AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ ENV GIN_MODE=release
 RUN CGO_ENABLED=0 GOOS=linux go build -o app .
 
 # Stage 2: Copy the executable to a lightweight container
-FROM alpine:3.18
+FROM alpine:latest
 
 WORKDIR /app
 

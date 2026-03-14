@@ -1,8 +1,7 @@
-version: "3.8"
-
 x-sandbox-defaults: &sandbox-defaults
-  env_file:
-    - .env
+  environment:
+    RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq-server:5672}
+    REDIS_URL: ${REDIS_URL:-redis-server:6379}
   read_only: true
   tmpfs:
     - /tmp:size=64m,mode=1777
@@ -35,8 +34,14 @@ services:
 
   app-server:
     build: .
-    env_file:
-      - .env
+    environment:
+      PORT: ${PORT:-3000}
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_URL: ${DB_URL:-mongodb://database:27017/opencodelab}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq-server:5672}
+      REDIS_URL: ${REDIS_URL:-redis-server:6379}
+      MAX_CODE_LENGTH: ${MAX_CODE_LENGTH:-10000}
+      ENABLE_V2_FAULT_TEST: ${ENABLE_V2_FAULT_TEST:-false}
     networks:
       - opencodelab
     depends_on:
@@ -48,7 +53,7 @@ services:
         condition: service_healthy
   redis-server:
     container_name: redis
-    image: redis:7.0-alpine3.18
+    image: redis:latest
     volumes:
       - redis-data:/data
     networks:
@@ -61,8 +66,8 @@ services:
   polling-server:
     build:
       context: ./polling-server
-    env_file:
-      - .env
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis-server:6379}
     networks:
       - opencodelab
     depends_on:
@@ -71,7 +76,7 @@ services:
 
   rabbitmq-server:
     container_name: mq
-    image: rabbitmq:3.12-alpine
+    image: rabbitmq:latest
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     networks:

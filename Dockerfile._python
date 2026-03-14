@@ -1,5 +1,5 @@
 # Stage 1: Build Golang executable
-FROM golang:1.20.5-alpine3.18 AS builder
+FROM golang:alpine AS builder
 WORKDIR /app
 
 COPY ./sandboxes .
@@ -8,8 +8,7 @@ RUN go mod download
 
 RUN go build -o runner ./python/sandbox.go
 
-
-FROM python:3.10-alpine3.18
+FROM python:alpine
 WORKDIR /app
 
 COPY --from=builder /app/runner .

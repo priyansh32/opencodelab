@@ -1,5 +1,25 @@
 version: "3.8"
 
+x-sandbox-defaults: &sandbox-defaults
+  env_file:
+    - .env
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  pids_limit: 64
+  mem_limit: 256m
+  cpus: "0.50"
+  init: true
+  networks:
+    - opencodelab
+  depends_on:
+    rabbitmq-server:
+      condition: service_healthy
+
 services:
   nginx:
     container_name: nginx
@@ -77,48 +97,14 @@ services:
       retries: 5
 
   python-sandbox:
+    <<: *sandbox-defaults
     build:
       dockerfile: Dockerfile._python
-    env_file:
-      - .env
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    pids_limit: 64
-    mem_limit: 256m
-    cpus: "0.50"
-    init: true
-    networks:
-      - opencodelab
-    depends_on:
-      rabbitmq-server:
-        condition: service_healthy
 
   node-sandbox:
+    <<: *sandbox-defaults
     build:
       dockerfile: Dockerfile._node
-    env_file:
-      - .env
-    read_only: true
-    tmpfs:
-      - /tmp:size=64m,mode=1777
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    pids_limit: 64
-    mem_limit: 256m
-    cpus: "0.50"
-    init: true
-    networks:
-      - opencodelab
-    depends_on:
-      rabbitmq-server:
-        condition: service_healthy
 
 volumes:
   rabbitmq-data:

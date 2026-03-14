@@ -24,10 +24,19 @@ type executionStatus struct {
 	Error         string `json:"error,omitempty"`
 }
 
+const (
+	statusCompleted          = "completed"
+	statusFailed             = "failed"
+	statusTimeout            = "timeout"
+	statusQueued             = "queued"
+	statusInvalidRequest     = "invalid_request"
+	statusBackendUnavailable = "backend_unavailable"
+)
+
 var terminalStatuses = map[string]bool{
-	"completed": true,
-	"failed":    true,
-	"timeout":   true,
+	statusCompleted: true,
+	statusFailed:    true,
+	statusTimeout:   true,
 }
 
 // Replace the following Redis connection details with your actual configuration
@@ -42,31 +51,31 @@ func inferStatus(body string) string {
 	trimmed := strings.TrimSpace(body)
 	switch {
 	case strings.Contains(trimmed, "Time limit exceeded"):
-		return "timeout"
+		return statusTimeout
 	case strings.Contains(trimmed, "Traceback"):
-		return "failed"
+		return statusFailed
 	case strings.Contains(trimmed, "SyntaxError"):
-		return "failed"
+		return statusFailed
 	case strings.Contains(trimmed, "ReferenceError"):
-		return "failed"
+		return statusFailed
 	case strings.Contains(trimmed, "exit status"):
-		return "failed"
+		return statusFailed
 	default:
-		return "completed"
+		return statusCompleted
 	}
 }
 
-func lookupExecutionStatus(client *redis.Client, key string) (int, executionStatus) {
+func lookupExecutionStatus(parentContext context.Context, client *redis.Client, key string) (int, executionStatus) {
 	if key == "" {
 		return http.StatusBadRequest, executionStatus{
 			CorrelationID: key,
 			Exists:        false,
-			Status:        "invalid_request",
+			Status:        statusInvalidRequest,
 			Error:         "missing correlationID query parameter",
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(parentContext, 3*time.Second)
 	defer cancel()
 
 	val, err := client.Get(ctx, key).Result()
@@ -74,7 +83,7 @@ func lookupExecutionStatus(client *redis.Client, key string) (int, executionStat
 		return http.StatusOK, executionStatus{
 			CorrelationID: key,
 			Exists:        false,
-			Status:        "queued",
+			Status:        statusQueued,
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		}
 	}
@@ -84,7 +93,7 @@ func lookupExecutionStatus(client *redis.Client, key string) (int, executionStat
 		return http.StatusServiceUnavailable, executionStatus{
 			CorrelationID: key,
 			Exists:        false,
-			Status:        "backend_unavailable",
+			Status:        statusBackendUnavailable,
 			Error:         "polling backend unavailable",
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		}
@@ -104,16 +113,15 @@ func setupRouter(client *redis.Client) *gin.Engine {
 
 	r.GET("/consumer", func(c *gin.Context) {
 		key := c.Query("correlationID")
-		statusCode, payload := lookupExecutionStatus(client, key)
+		statusCode, payload := lookupExecutionStatus(c.Request.Context(), client, key)
 		c.JSON(statusCode, payload)
 	})
 
 	r.GET("/consumer/stream", func(c *gin.Context) {
 		key := c.Query("correlationID")
 		if key == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "missing correlationID query parameter",
-			})
+			statusCode, payload := lookupExecutionStatus(c.Request.Context(), client, key)
+			c.JSON(statusCode, payload)
 			return
 		}
 
@@ -130,6 +138,7 @@ func setupRouter(client *redis.Client) *gin.Engine {
 		sendStatus := func(payload executionStatus) {
 			data, err := json.Marshal(payload)
 			if err != nil {
+				log.Printf("Failed to marshal status payload for key %s: %v", payload.CorrelationID, err)
 				return
 			}
 			fmt.Fprintf(c.Writer, "event: status\n")
@@ -138,7 +147,7 @@ func setupRouter(client *redis.Client) *gin.Engine {
 		}
 
 		for {
-			statusCode, payload := lookupExecutionStatus(client, key)
+			statusCode, payload := lookupExecutionStatus(c.Request.Context(), client, key)
 			sendStatus(payload)
 
 			if statusCode != http.StatusOK {

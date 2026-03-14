@@ -12,7 +12,7 @@ const MAX_CODE_LENGTH = Number.isFinite(parsedMaxCodeLength) && parsedMaxCodeLen
 
 const producerPayloadSchema = Joi.object<Code>({
   language: Joi.string().valid(...SUPPORTED_LANGUAGES).required(),
-  code: Joi.string().max(MAX_CODE_LENGTH).required()
+  code: Joi.string().min(1).max(MAX_CODE_LENGTH).required()
 }).required()
 
 v1Router.get('/', (req: Request, res: Response) => {
@@ -31,7 +31,7 @@ v1Router.post('/producer', catchAsync(async (req: Request, res: Response) => {
   }
 
   const executionID = await RabbitMQClient.produce(value)
-  res.status(200).send(fr({ message: 'Pushed to queue', executionID }))
+  res.status(202).send(fr({ message: 'Request accepted for processing', executionID }))
 })
 )
 

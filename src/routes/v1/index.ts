@@ -5,14 +5,187 @@ import catchAsync from '@/utils/catchAsync'
 
 const v1Router = Router()
 
+const statusUI = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Execution Status</title>
+    <style>
+      :root {
+        --bg: #f7f5f2;
+        --surface: #ffffff;
+        --ink: #1c1c1a;
+        --accent: #174e4f;
+        --border: #d6d2c8;
+        --ok: #1f7a52;
+        --warn: #c26a00;
+        --err: #a52727;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at 20% 10%, #ffffff, var(--bg));
+        padding: 24px;
+      }
+      .panel {
+        width: min(780px, 100%);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.07);
+        padding: 20px;
+      }
+      .title {
+        margin: 0 0 8px;
+        font-size: 1.4rem;
+        letter-spacing: 0.02em;
+      }
+      .muted {
+        color: #5f5a53;
+        margin-top: 0;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 16px 0;
+      }
+      input {
+        flex: 1 1 360px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        font: inherit;
+      }
+      button {
+        border: 0;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        padding: 12px 16px;
+        font: inherit;
+        cursor: pointer;
+      }
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+      .chip {
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.85rem;
+        border: 1px solid var(--border);
+      }
+      .chip.completed { color: var(--ok); border-color: var(--ok); }
+      .chip.failed { color: var(--err); border-color: var(--err); }
+      .chip.timeout { color: var(--warn); border-color: var(--warn); }
+      pre {
+        background: #f2efe8;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 12px;
+        overflow: auto;
+        min-height: 180px;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="panel">
+      <h1 class="title">Execution Status</h1>
+      <p class="muted">Track queued, running, timeout, failed, or completed runs in real time.</p>
+      <div class="row">
+        <input id="executionId" placeholder="Paste executionID" />
+        <button id="watchBtn">Watch</button>
+      </div>
+      <div class="meta">
+        <span class="chip" id="statusChip">queued</span>
+        <code id="updatedAt"></code>
+      </div>
+      <pre id="output">Waiting for execution status...</pre>
+    </main>
+
+    <script>
+      const statusChip = document.getElementById('statusChip');
+      const updatedAt = document.getElementById('updatedAt');
+      const output = document.getElementById('output');
+      const watchBtn = document.getElementById('watchBtn');
+      const executionInput = document.getElementById('executionId');
+      let source;
+
+      const terminal = new Set(['completed', 'failed', 'timeout']);
+
+      function setStatus(payload) {
+        const status = payload.status || 'queued';
+        statusChip.textContent = status;
+        statusChip.className = 'chip ' + status;
+        updatedAt.textContent = payload.updatedAt ? ('updated: ' + payload.updatedAt) : '';
+        output.textContent = payload.body || payload.error || 'Waiting for execution status...';
+      }
+
+      function startWatching() {
+        const executionID = executionInput.value.trim();
+        if (!executionID) return;
+
+        if (source) source.close();
+        output.textContent = 'Connecting to status stream...';
+
+        source = new EventSource('/consumer/stream?correlationID=' + encodeURIComponent(executionID));
+        source.addEventListener('status', (event) => {
+          const payload = JSON.parse(event.data);
+          setStatus(payload);
+          if (terminal.has(payload.status)) {
+            source.close();
+          }
+        });
+
+        source.onerror = () => {
+          output.textContent = 'Stream interrupted. You can retry watching this execution.';
+          source.close();
+        };
+      }
+
+      watchBtn.addEventListener('click', startWatching);
+      executionInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') startWatching();
+      });
+
+      const url = new URL(window.location.href);
+      const presetExecutionID = url.searchParams.get('executionID');
+      if (presetExecutionID) {
+        executionInput.value = presetExecutionID;
+        startWatching();
+      }
+    </script>
+  </body>
+</html>`
+
 v1Router.get('/', (req: Request, res: Response) => {
   res.status(200).send(fr({ message: 'Hello, world 1!', apiVersion: req.apiVersion }))
 }
 )
 
+v1Router.get('/status-ui', (_req: Request, res: Response) => {
+  res.type('html').send(statusUI)
+})
+
 v1Router.post('/producer', catchAsync(async (req: Request, res: Response) => {
   const executionID = await RabbitMQClient.produce(req.body)
-  res.status(200).send(fr({ message: 'Pushed to queue', executionID }))
+  res.status(200).send(fr({
+    message: 'Pushed to queue',
+    executionID,
+    statusEndpoint: `/consumer?correlationID=${executionID}`,
+    streamEndpoint: `/consumer/stream?correlationID=${executionID}`,
+    statusUI: `/status-ui?executionID=${executionID}`
+  }))
 })
 )
 

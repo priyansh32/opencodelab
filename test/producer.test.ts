@@ -21,3 +21,27 @@ test('rejects unsupported language payloads before enqueue', async () => {
     }
   )
 })
+
+test('sends message to correct queue for supported language', async () => {
+  const sendToQueueCalls: any[] = []
+  const fakeChannel = {
+    sendToQueue: (...args: any[]) => {
+      sendToQueueCalls.push(args)
+      return true
+    }
+  } as unknown as Channel
+
+  const producer = new Producer(fakeChannel, 'reply-queue', new EventEmitter())
+  const payload = { language: 'javascript', code: 'console.log(1)' }
+
+  const correlationID = await producer.produceMessage(payload)
+
+  assert.ok(correlationID)
+  assert.equal(sendToQueueCalls.length, 1)
+
+  const [queue, message, options] = sendToQueueCalls[0]
+  assert.equal(queue, 'node18_16')
+  assert.deepEqual(JSON.parse(message.toString()), payload)
+  assert.equal(options.replyTo, 'reply-queue')
+  assert.equal(options.correlationId, correlationID)
+})

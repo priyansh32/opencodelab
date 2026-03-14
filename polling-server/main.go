@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -27,22 +28,29 @@ func setupRouter(client *redis.Client) *gin.Engine {
 		key := c.Query("correlationID")
 
 		// Check if the key exists in Redis
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
 
 		val, err := client.Get(ctx, key).Result()
-		if err != nil {
-			// Key does not exist in Redis
+		if errors.Is(err, redis.Nil) {
 			c.JSON(http.StatusOK, gin.H{
 				"exists": false,
 			})
-		} else {
-			// Key exists in Redis
-			c.JSON(http.StatusOK, gin.H{
-				"exists": true,
-				"body":   val,
-			})
+			return
 		}
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Error checking key in Redis",
+			})
+			return
+		}
+
+		// Key exists in Redis
+		c.JSON(http.StatusOK, gin.H{
+			"exists": true,
+			"body":   val,
+		})
 	})
 	return r
 }

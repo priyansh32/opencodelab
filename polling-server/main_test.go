@@ -29,16 +29,14 @@ func TestConsumerReturnsExistsFalseWhenKeyMissing(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
 	}
 
-	var body map[string]any
+	var body struct {
+		Exists bool `json:"exists"`
+	}
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	exists, ok := body["exists"].(bool)
-	if !ok {
-		t.Fatalf("expected exists field to be boolean")
-	}
-	if exists {
+	if body.Exists {
 		t.Fatalf("expected exists=false for missing key")
 	}
 }
@@ -62,16 +60,40 @@ func TestConsumerReturnsBodyWhenKeyExists(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
 	}
 
-	var body map[string]any
+	var body struct {
+		Exists bool   `json:"exists"`
+		Body   string `json:"body"`
+	}
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
-	exists, ok := body["exists"].(bool)
-	if !ok || !exists {
+	if !body.Exists {
 		t.Fatalf("expected exists=true for existing key")
 	}
-	if body["body"] != "program output" {
+	if body.Body != "program output" {
 		t.Fatalf("expected body to match redis value")
+	}
+}
+
+func TestConsumerReturns500OnRedisError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	miniRedis := miniredis.RunT(t)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: miniRedis.Addr(),
+	})
+	defer client.Close()
+
+	router := setupRouter(client)
+
+	miniRedis.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/consumer?correlationID=any-id", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, res.Code)
 	}
 }

@@ -34,3 +34,13 @@ test('defaults to version 1 when header is unsupported', () => {
   const apiVersion = runMiddleware('9')
   assert.equal(apiVersion, '1')
 })
+
+test('defaults to version 1 when header is empty string', () => {
+  const apiVersion = runMiddleware('')
+  assert.equal(apiVersion, '1')
+})
+
+test('uses first value when header is an array', () => {
+  const apiVersion = runMiddleware(['2', '1'])
+  assert.equal(apiVersion, '2')
+})

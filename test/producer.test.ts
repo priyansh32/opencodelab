@@ -40,7 +40,7 @@ test('sends message to correct queue for supported language', async () => {
   assert.equal(sendToQueueCalls.length, 1)
 
   const [queue, message, options] = sendToQueueCalls[0]
-  assert.equal(queue, 'node18_16')
+  assert.equal(queue, 'node24')
   assert.deepEqual(JSON.parse(message.toString()), payload)
   assert.equal(options.replyTo, 'reply-queue')
   assert.equal(options.correlationId, correlationID)

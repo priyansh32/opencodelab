@@ -9,6 +9,8 @@ import routeHandler from '@/routes'
 import RabbitMQClient from '@/services/rabbitmq/client'
 
 const PORT = (process.env.PORT != null) ? process.env.PORT : 3000
+const helmetDirectives = helmet.contentSecurityPolicy.getDefaultDirectives()
+helmetDirectives['script-src'] = ["'self'", "'unsafe-inline'"]
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -21,10 +23,15 @@ declare module 'express-serve-static-core' {
 
 const app = express()
 
-app.use(helmet())
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: helmetDirectives
+  }
+}))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use('/status-ui', express.static(path.join(process.cwd(), 'public'), { index: 'status-ui.html' }))
+app.use('/client', express.static(path.join(process.cwd(), 'public'), { index: 'client.html' }))
 
 app.use('/', routeHandler)
 app.use(errorHandler)

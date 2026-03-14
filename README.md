@@ -5,7 +5,7 @@ OpenCodeLab is a multi-service code-execution platform that accepts source code,
 This repository contains the full stack:
 - Node.js API server (TypeScript + Express)
 - RabbitMQ-backed execution queue
-- Go sandbox workers (Node.js and Python runtimes)
+- Go sandbox workers (Node.js, Python, C, C++ runtimes)
 - Redis-backed status store
 - Go polling/streaming API
 - Nginx entrypoint and routing
@@ -34,7 +34,7 @@ This repository contains the full stack:
 
 ### Core problem solved
 
-- Accept user-submitted code (`javascript` or `python`)
+- Accept user-submitted code (`javascript`, `python`, `c`, `cpp`, `c++`)
 - Execute asynchronously with bounded runtime
 - Return a stable `executionID` immediately
 - Provide live and pull-based status APIs
@@ -56,7 +56,9 @@ flowchart LR
     Mongo[(MongoDB)]
     MQ[(RabbitMQ)]
     NodeWorker[Node Sandbox Worker\nGo runner + node -e]
-    PyWorker[Python Sandbox Worker\nGo runner + python3.10 -c]
+    PyWorker[Python Sandbox Worker\nGo runner + python3 -c]
+    CWorker[C Sandbox Worker\nGo runner + gcc]
+    CppWorker[C++ Sandbox Worker\nGo runner + g++]
     Redis[(Redis)]
     Polling[Polling Server\nGo + Gin]
     UI[Status UI\n/public/status-ui.html]
@@ -68,8 +70,12 @@ flowchart LR
     API -->|publish code job| MQ
     MQ --> NodeWorker
     MQ --> PyWorker
+    MQ --> CWorker
+    MQ --> CppWorker
     NodeWorker -->|persist status/output| Redis
     PyWorker -->|persist status/output| Redis
+    CWorker -->|persist status/output| Redis
+    CppWorker -->|persist status/output| Redis
     Polling -->|read status| Redis
     API -->|serves static| UI
     UI -->|SSE /consumer/stream| Nginx
@@ -151,8 +157,11 @@ Notable behavior:
 ### 2) RabbitMQ integration (`src/services/rabbitmq`)
 
 - `Producer` maps language to queue:
-  - `javascript` -> `node18_16`
-  - `python` -> `python310`
+  - `javascript` -> `node24`
+  - `python` -> `python313`
+  - `c` -> `c_latest`
+  - `cpp` -> `cpp_latest`
+  - `c++` -> `cpp_latest`
 - Message properties include:
   - `correlationId` (UUID)
   - `replyTo` (ephemeral exclusive queue)
@@ -167,8 +176,10 @@ Each worker is a Go service that:
 - Persists normalized result into Redis
 
 Execution commands:
-- Node worker: `node -e <code>`
-- Python worker: `python3.10 -c <code>`
+- Node worker: `node -e <code>` in `node:24-alpine`
+- Python worker: `python3 -c <code>` in `python:3.13-alpine` (or `PYTHON_EXECUTABLE` override)
+- C worker: compile with `gcc`, then execute compiled binary
+- C++ worker: compile with `g++ -std=c++17`, then execute compiled binary
 
 Result normalization:
 - `completed`
@@ -368,23 +379,19 @@ REDIS_URL=localhost:6379
 
 ### Prerequisites
 
-- Node.js 18+
-- npm
-- Docker (for local infra services)
-- Go 1.20+ (for polling-server tests/build)
+- Docker
 
-### Option A: API dev with local infra helper script
+### Recommended: full stack launch script
 
 ```bash
 ./scripts/launch.sh
 ```
 
 This script:
-- creates `opencodelab-dev` network
-- starts `mq-dev`, `db-dev`, `redis-dev`
-- waits for service ports
-- installs Node dependencies if needed
-- runs `npm run dev`
+- builds and starts the full stack with Docker Compose
+- recreates nginx to avoid stale upstream DNS after API rebuilds
+- waits for gateway dependencies and worker containers
+- prints entry endpoints when ready
 
 Stop infra:
 
@@ -424,10 +431,12 @@ Services in `docker-compose.yml`:
 - `database`
 - `python-sandbox`
 - `node-sandbox`
+- `c-sandbox`
+- `cpp-sandbox`
 
 Sandbox defaults applied through compose anchor:
 - read-only filesystem
-- tmpfs for `/tmp`
+- tmpfs for `/tmp` (with execute permissions for compiled binaries)
 - `no-new-privileges`
 - `cap_drop: ALL`
 - resource limits (`pids`, `cpu`, `memory`)
@@ -530,6 +539,8 @@ Potential next steps:
 ├── sandboxes/                 # Go workers + runtime-specific executors
 │   ├── client/
 │   ├── node/
+│   ├── c/
+│   ├── cpp/
 │   ├── python/
 │   └── utils/
 ├── public/                    # Static status UI
@@ -537,6 +548,8 @@ Potential next steps:
 ├── docker-compose.yml
 ├── nginx.conf
 ├── Dockerfile
+├── Dockerfile._c
+├── Dockerfile._cpp
 ├── Dockerfile._node
 └── Dockerfile._python
 ```

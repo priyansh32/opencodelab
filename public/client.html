@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCodeLab Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5f2e9;
+        --surface: #fffdf8;
+        --line: #d6cfbf;
+        --ink: #1e1c17;
+        --muted: #655f53;
+        --brand: #0f6d67;
+        --brand-2: #c55a11;
+        --ok: #1f7d4a;
+        --warn: #b06900;
+        --err: #ab2e2e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% -20%, #fffefc 0%, transparent 45%),
+          radial-gradient(circle at 90% 10%, #e5f1ef 0%, transparent 40%),
+          repeating-linear-gradient(
+            90deg,
+            rgba(30, 28, 23, 0.03) 0,
+            rgba(30, 28, 23, 0.03) 1px,
+            transparent 1px,
+            transparent 14px
+          ),
+          var(--bg);
+      }
+
+      .app {
+        width: min(1120px, 100%);
+        margin: 0 auto;
+        padding: 28px 16px 36px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: linear-gradient(140deg, #fffdfa 0%, #f8f4ea 100%);
+        padding: 20px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.55rem, 3vw, 2.15rem);
+        letter-spacing: 0.01em;
+      }
+
+      .hero p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: 1.2fr 1fr;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        padding: 16px;
+      }
+
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 1.06rem;
+      }
+
+      .muted {
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+
+      label {
+        font-size: 0.86rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .field {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      select,
+      textarea,
+      button,
+      input {
+        font: inherit;
+      }
+
+      select,
+      textarea,
+      input {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      select,
+      input {
+        padding: 10px 12px;
+      }
+
+      textarea {
+        min-height: 260px;
+        resize: vertical;
+        padding: 12px;
+        line-height: 1.45;
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+        font-size: 0.94rem;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .btn {
+        border: 0;
+        border-radius: 11px;
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .btn.primary {
+        background: linear-gradient(140deg, var(--brand) 0%, #0d5954 100%);
+        color: #fff;
+      }
+
+      .btn.ghost {
+        background: #efe8d8;
+        color: var(--ink);
+      }
+
+      .btn.alt {
+        background: #f0ece2;
+        color: var(--ink);
+        padding: 8px 10px;
+        font-size: 0.86rem;
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      .status-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .status-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fbf8f0;
+        padding: 6px 12px;
+        width: fit-content;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+
+      .status-chip.queued,
+      .status-chip.idle {
+        color: #7f6f45;
+        border-color: #cdbf98;
+      }
+
+      .status-chip.completed {
+        color: var(--ok);
+        border-color: var(--ok);
+      }
+
+      .status-chip.failed,
+      .status-chip.backend_unavailable,
+      .status-chip.invalid_request {
+        color: var(--err);
+        border-color: var(--err);
+      }
+
+      .status-chip.timeout {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+
+      .kv {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fcfaf5;
+      }
+
+      .kv .key {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+      }
+
+      .kv .value {
+        margin-top: 4px;
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+        font-size: 0.92rem;
+        word-break: break-all;
+      }
+
+      .mono {
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+      }
+
+      pre {
+        margin: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #f8f4ea;
+        padding: 12px;
+        min-height: 160px;
+        max-height: 380px;
+        overflow: auto;
+        line-height: 1.45;
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+        font-size: 0.88rem;
+      }
+
+      ul.timeline {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 9px;
+      }
+
+      ul.timeline li {
+        border-left: 3px solid var(--brand-2);
+        background: #fff8ec;
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 0.9rem;
+      }
+
+      ul.timeline li .time {
+        color: var(--muted);
+        font-family: "IBM Plex Mono", "Consolas", monospace;
+        font-size: 0.76rem;
+      }
+
+      details {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fff;
+      }
+
+      details + details {
+        margin-top: 10px;
+      }
+
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      .endpoints a {
+        color: var(--brand);
+        text-decoration: none;
+      }
+
+      .endpoints a:hover {
+        text-decoration: underline;
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(10px);
+        animation: rise 0.55s ease forwards;
+        animation-delay: var(--delay, 0s);
+      }
+
+      @keyframes rise {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 940px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        textarea {
+          min-height: 200px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="hero reveal" style="--delay: 0.05s">
+        <h1>OpenCodeLab Client</h1>
+        <p>Write code, submit once, and watch execution status live with detailed payload visibility.</p>
+      </header>
+
+      <section class="grid">
+        <article class="card reveal" style="--delay: 0.1s">
+          <h2>Composer</h2>
+          <p class="muted">Submit `javascript`, `python`, `c`, `cpp`, or `c++` code to `/producer`.</p>
+
+          <div class="field">
+            <label for="languageSelect">Language</label>
+            <select id="languageSelect">
+              <option value="javascript">javascript</option>
+              <option value="python">python</option>
+              <option value="c">c</option>
+              <option value="cpp">cpp</option>
+              <option value="c++">c++</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="codeInput">Code</label>
+            <textarea id="codeInput" spellcheck="false">console.log('hello from OpenCodeLab')
+for (let i = 1; i <= 3; i++) {
+  console.log('tick', i)
+}</textarea>
+          </div>
+
+          <div class="row" style="margin-top: 10px">
+            <button class="btn primary" id="runButton" type="button">Run Code</button>
+            <button class="btn ghost" id="clearButton" type="button">Clear</button>
+            <button class="btn alt" id="exampleJsButton" type="button">JS Example</button>
+            <button class="btn alt" id="examplePyButton" type="button">Python Example</button>
+            <button class="btn alt" id="exampleCButton" type="button">C Example</button>
+            <button class="btn alt" id="exampleCppButton" type="button">C++ Example</button>
+          </div>
+        </article>
+
+        <article class="card reveal" style="--delay: 0.14s">
+          <h2>Execution</h2>
+          <div class="status-grid">
+            <span id="statusChip" class="status-chip idle">idle</span>
+            <div class="kv">
+              <div class="key">Execution ID</div>
+              <div id="executionId" class="value">-</div>
+            </div>
+            <div class="row">
+              <button class="btn alt" id="copyExecutionId" type="button">Copy ID</button>
+            </div>
+            <div class="kv">
+              <div class="key">Stream State</div>
+              <div id="streamState" class="value">idle</div>
+            </div>
+            <div class="kv">
+              <div class="key">Last Update</div>
+              <div id="updatedAt" class="value">-</div>
+            </div>
+
+            <div class="kv endpoints">
+              <div class="key">Endpoints</div>
+              <div id="endpoints" class="value">-</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="card reveal" style="--delay: 0.18s">
+        <h2>Output</h2>
+        <pre id="outputPanel">Submit code to begin.</pre>
+      </section>
+
+      <section class="card reveal" style="--delay: 0.22s">
+        <h2>Execution Timeline</h2>
+        <ul id="timeline" class="timeline"></ul>
+      </section>
+
+      <section class="card reveal" style="--delay: 0.26s">
+        <h2>Payload Inspector</h2>
+        <details open>
+          <summary>Request Payload (`POST /producer`)</summary>
+          <pre id="requestPayload">{}</pre>
+        </details>
+        <details open>
+          <summary>Latest Response/Event Payload</summary>
+          <pre id="latestPayload">{}</pre>
+        </details>
+      </section>
+    </main>
+
+    <script>
+      const statusChip = document.getElementById('statusChip');
+      const executionId = document.getElementById('executionId');
+      const copyExecutionId = document.getElementById('copyExecutionId');
+      const streamState = document.getElementById('streamState');
+      const updatedAt = document.getElementById('updatedAt');
+      const endpoints = document.getElementById('endpoints');
+      const outputPanel = document.getElementById('outputPanel');
+      const requestPayload = document.getElementById('requestPayload');
+      const latestPayload = document.getElementById('latestPayload');
+      const timeline = document.getElementById('timeline');
+
+      const languageSelect = document.getElementById('languageSelect');
+      const codeInput = document.getElementById('codeInput');
+      const runButton = document.getElementById('runButton');
+      const clearButton = document.getElementById('clearButton');
+      const exampleJsButton = document.getElementById('exampleJsButton');
+      const examplePyButton = document.getElementById('examplePyButton');
+      const exampleCButton = document.getElementById('exampleCButton');
+      const exampleCppButton = document.getElementById('exampleCppButton');
+
+      const terminalStatuses = new Set(['completed', 'failed', 'timeout']);
+
+      let source;
+      let pollingTimer;
+      let currentExecutionId = '';
+      let lastStatus = 'idle';
+
+      function nowText() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function addTimeline(message) {
+        const item = document.createElement('li');
+        const time = document.createElement('div');
+        time.className = 'time';
+        time.textContent = nowText();
+
+        const text = document.createElement('div');
+        text.textContent = message;
+
+        item.appendChild(time);
+        item.appendChild(text);
+        timeline.prepend(item);
+
+        if (timeline.children.length > 24) {
+          timeline.removeChild(timeline.lastChild);
+        }
+      }
+
+      function resetTimeline() {
+        timeline.innerHTML = '';
+      }
+
+      function setStatus(status) {
+        const normalized = status || 'idle';
+        statusChip.textContent = normalized;
+        statusChip.className = `status-chip ${normalized}`;
+      }
+
+      function closeStream() {
+        if (source != null) {
+          source.close();
+          source = undefined;
+        }
+      }
+
+      function closePolling() {
+        if (pollingTimer != null) {
+          clearInterval(pollingTimer);
+          pollingTimer = undefined;
+        }
+      }
+
+      function renderEndpoints(id) {
+        if (!id) {
+          endpoints.innerHTML = '-';
+          return;
+        }
+
+        const enc = encodeURIComponent(id);
+        endpoints.innerHTML = [
+          `<div><a href="/consumer?correlationID=${enc}" target="_blank" rel="noreferrer">/consumer?correlationID=${enc}</a></div>`,
+          `<div><a href="/consumer/stream?correlationID=${enc}" target="_blank" rel="noreferrer">/consumer/stream?correlationID=${enc}</a></div>`,
+          `<div><a href="/status-ui?executionID=${enc}" target="_blank" rel="noreferrer">/status-ui?executionID=${enc}</a></div>`
+        ].join('');
+      }
+
+      function applyStatusPayload(payload) {
+        if (payload == null || typeof payload !== 'object') return;
+
+        latestPayload.textContent = JSON.stringify(payload, null, 2);
+
+        const status = payload.status || 'queued';
+        setStatus(status);
+
+        if (status !== lastStatus) {
+          addTimeline(`status changed to ${status}`);
+          lastStatus = status;
+        }
+
+        if (payload.updatedAt) {
+          updatedAt.textContent = payload.updatedAt;
+        }
+
+        if (payload.body !== undefined && payload.body !== null) {
+          outputPanel.textContent = payload.body === '' ? '(no output)' : payload.body;
+        } else if (payload.error !== undefined && payload.error !== null) {
+          outputPanel.textContent = payload.error;
+        }
+
+        if (terminalStatuses.has(status)) {
+          streamState.textContent = 'closed (terminal status)';
+          closeStream();
+          closePolling();
+        }
+      }
+
+      async function fetchStatusOnce(id) {
+        try {
+          const res = await fetch(`/consumer?correlationID=${encodeURIComponent(id)}`);
+          const payload = await res.json();
+          applyStatusPayload(payload);
+        } catch (error) {
+          addTimeline(`poll error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+
+      function startPollingFallback(id) {
+        closePolling();
+        addTimeline('stream interrupted, using polling fallback');
+        streamState.textContent = 'polling fallback';
+        void fetchStatusOnce(id);
+
+        pollingTimer = setInterval(() => {
+          void fetchStatusOnce(id);
+        }, 2000);
+      }
+
+      function startStream(id) {
+        closeStream();
+        closePolling();
+
+        streamState.textContent = 'connecting';
+        source = new EventSource(`/consumer/stream?correlationID=${encodeURIComponent(id)}`);
+
+        source.addEventListener('status', (event) => {
+          streamState.textContent = 'connected';
+          try {
+            const payload = JSON.parse(event.data);
+            applyStatusPayload(payload);
+          } catch {
+            addTimeline('received malformed stream event');
+          }
+        });
+
+        source.onerror = () => {
+          closeStream();
+          if (!terminalStatuses.has(lastStatus)) {
+            startPollingFallback(id);
+          }
+        };
+      }
+
+      function resetExecutionState() {
+        closeStream();
+        closePolling();
+        currentExecutionId = '';
+        lastStatus = 'idle';
+        executionId.textContent = '-';
+        streamState.textContent = 'idle';
+        updatedAt.textContent = '-';
+        setStatus('idle');
+        renderEndpoints('');
+        latestPayload.textContent = '{}';
+        outputPanel.textContent = 'Submit code to begin.';
+      }
+
+      async function parseResponseBody(response) {
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      async function submitCode() {
+        const language = languageSelect.value;
+        const code = codeInput.value;
+
+        if (code.trim() === '') {
+          addTimeline('blocked empty submission');
+          outputPanel.textContent = 'Code cannot be empty.';
+          return;
+        }
+
+        runButton.disabled = true;
+        resetExecutionState();
+        resetTimeline();
+
+        const payload = { language, code };
+        requestPayload.textContent = JSON.stringify(payload, null, 2);
+        addTimeline(`submitted ${language} execution request`);
+        outputPanel.textContent = 'Submitting request...';
+
+        try {
+          const response = await fetch('/producer', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'accept-version': '1'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const responseBody = await parseResponseBody(response);
+          latestPayload.textContent = JSON.stringify(responseBody, null, 2);
+
+          if (!response.ok) {
+            const message = typeof responseBody === 'object' && responseBody !== null
+              ? (responseBody.message || JSON.stringify(responseBody))
+              : String(responseBody);
+
+            addTimeline(`submit failed (${response.status})`);
+            outputPanel.textContent = `Request failed: ${message}`;
+            return;
+          }
+
+          const id = responseBody?.data?.executionID;
+          if (typeof id !== 'string' || id.length === 0) {
+            addTimeline('submit failed (missing executionID)');
+            outputPanel.textContent = 'Request succeeded but no executionID was returned.';
+            return;
+          }
+
+          currentExecutionId = id;
+          executionId.textContent = id;
+          setStatus('queued');
+          renderEndpoints(id);
+          outputPanel.textContent = 'Request accepted. Connecting to live stream...';
+          addTimeline(`execution created: ${id}`);
+          startStream(id);
+        } catch (error) {
+          addTimeline('request error');
+          outputPanel.textContent = `Network error: ${error instanceof Error ? error.message : String(error)}`;
+        } finally {
+          runButton.disabled = false;
+        }
+      }
+
+      runButton.addEventListener('click', () => {
+        void submitCode();
+      });
+
+      clearButton.addEventListener('click', () => {
+        codeInput.value = '';
+        requestPayload.textContent = '{}';
+        resetExecutionState();
+        resetTimeline();
+      });
+
+      exampleJsButton.addEventListener('click', () => {
+        languageSelect.value = 'javascript';
+        codeInput.value = [
+          "const values = [2, 4, 6, 8]",
+          "const sum = values.reduce((acc, value) => acc + value, 0)",
+          "console.log('sum =', sum)",
+          "console.log('average =', sum / values.length)"
+        ].join('\n');
+      });
+
+      examplePyButton.addEventListener('click', () => {
+        languageSelect.value = 'python';
+        codeInput.value = [
+          'values = [3, 6, 9, 12]',
+          'total = sum(values)',
+          "print('sum =', total)",
+          "print('average =', total / len(values))"
+        ].join('\n');
+      });
+
+      exampleCButton.addEventListener('click', () => {
+        languageSelect.value = 'c';
+        codeInput.value = [
+          '#include <stdio.h>',
+          '',
+          'int main(void) {',
+          '  int values[] = {1, 2, 3, 4};',
+          '  int sum = 0;',
+          '  for (int i = 0; i < 4; i++) sum += values[i];',
+          '  printf("sum = %d\\n", sum);',
+          '  return 0;',
+          '}'
+        ].join('\n');
+      });
+
+      exampleCppButton.addEventListener('click', () => {
+        languageSelect.value = 'c++';
+        codeInput.value = [
+          '#include <iostream>',
+          '#include <vector>',
+          '',
+          'int main() {',
+          '  std::vector<int> values = {2, 4, 6, 8};',
+          '  int sum = 0;',
+          '  for (int value : values) sum += value;',
+          '  std::cout << "sum = " << sum << "\\n";',
+          '  return 0;',
+          '}'
+        ].join('\n');
+      });
+
+      copyExecutionId.addEventListener('click', async () => {
+        if (!currentExecutionId) return;
+        try {
+          await navigator.clipboard.writeText(currentExecutionId);
+          addTimeline('execution ID copied');
+        } catch {
+          addTimeline('unable to copy execution ID');
+        }
+      });
+
+      const presetExecutionId = new URL(window.location.href).searchParams.get('executionID');
+      if (presetExecutionId) {
+        currentExecutionId = presetExecutionId;
+        executionId.textContent = presetExecutionId;
+        renderEndpoints(presetExecutionId);
+        setStatus('queued');
+        addTimeline(`watching existing execution: ${presetExecutionId}`);
+        startStream(presetExecutionId);
+      }
+    </script>
+  </body>
+</html>

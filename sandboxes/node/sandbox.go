@@ -38,5 +38,5 @@ func executeCode(code string) utils.ExecutionResult {
 }
 
 func main() {
-	client.Initialize("node18_16", executeCode)
+	client.Initialize("node24", executeCode)
 }

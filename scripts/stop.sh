@@ -4,11 +4,18 @@
 
 set -euo pipefail
 
-containers=$(docker ps -a --filter "network=opencodelab-dev" --format "{{.Names}}" || true)
+managed_containers=("mq-dev" "db-dev" "redis-dev")
+containers_to_remove=()
 
-if [[ -n "$containers" ]]; then
-  docker stop $containers >/dev/null 2>&1 || true
-  docker rm $containers >/dev/null 2>&1 || true
+for container in "${managed_containers[@]}"; do
+  if docker inspect "$container" >/dev/null 2>&1; then
+    containers_to_remove+=("$container")
+  fi
+done
+
+if [[ "${#containers_to_remove[@]}" -gt 0 ]]; then
+  docker stop "${containers_to_remove[@]}" >/dev/null 2>&1 || true
+  docker rm "${containers_to_remove[@]}" >/dev/null 2>&1 || true
 fi
 
 docker network rm opencodelab-dev >/dev/null 2>&1 || true

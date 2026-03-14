@@ -41,8 +41,41 @@ wait_for_port "RabbitMQ" 5672
 wait_for_port "MongoDB" 27017
 wait_for_port "Redis" 6379
 
-if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
-  npm install
-fi
+compute_dependency_hash () {
+  if command -v sha256sum >/dev/null 2>&1; then
+    if [[ -f package-lock.json ]]; then
+      sha256sum package.json package-lock.json | sha256sum | awk '{print $1}'
+    else
+      sha256sum package.json | awk '{print $1}'
+    fi
+  else
+    if [[ -f package-lock.json ]]; then
+      shasum -a 256 package.json package-lock.json | shasum -a 256 | awk '{print $1}'
+    else
+      shasum -a 256 package.json | awk '{print $1}'
+    fi
+  fi
+}
+
+ensure_node_dependencies () {
+  local deps_hash_file=".node_modules.depshash"
+  local current_hash
+  local previous_hash=""
+
+  current_hash="$(compute_dependency_hash)"
+
+  if [[ -f "$deps_hash_file" ]]; then
+    previous_hash="$(cat "$deps_hash_file")"
+  fi
+
+  if [[ ! -d node_modules ]] || [[ "$current_hash" != "$previous_hash" ]]; then
+    npm install
+    current_hash="$(compute_dependency_hash)"
+  fi
+
+  printf '%s\n' "$current_hash" > "$deps_hash_file"
+}
+
+ensure_node_dependencies
 
 npm run dev

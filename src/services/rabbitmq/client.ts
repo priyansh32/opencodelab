@@ -54,10 +54,6 @@ class RabbitMQClient {
       await this.initialize()
     }
 
-    if (!this.isInitialized) {
-      throw new APIError(503, 'Queue service is currently unavailable')
-    }
-
     return await this.producer.produceMessage(data)
   }
 

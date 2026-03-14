@@ -1,5 +1,14 @@
 import { createLogger, format, transports } from 'winston'
+import { mkdirSync } from 'fs'
+import path from 'path'
 const { combine, timestamp, label, json } = format
+const LOG_DIR = path.join(process.cwd(), 'logs')
+
+try {
+  mkdirSync(LOG_DIR, { recursive: true })
+} catch (error) {
+  console.error('Failed to create logs directory', error)
+}
 
 const prodLogger = createLogger({
   level: 'info',
@@ -9,15 +18,15 @@ const prodLogger = createLogger({
     json()
   ),
   transports: [
-    new transports.File({ filename: 'logs/error.log', level: 'error' }),
-    new transports.File({ filename: 'logs/combined.log' })
+    new transports.File({ filename: path.join(LOG_DIR, 'error.log'), level: 'error' }),
+    new transports.File({ filename: path.join(LOG_DIR, 'combined.log') })
   ]
 })
 
 const devLogger = createLogger({
   level: 'debug',
   transports: [
-    new transports.File({ filename: 'logs/dev.log' }),
+    new transports.File({ filename: path.join(LOG_DIR, 'dev.log') }),
     new transports.Console({
       format: format.combine(
         format.colorize(),

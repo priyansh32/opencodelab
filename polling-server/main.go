@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -47,22 +46,44 @@ var redisClient = redis.NewClient(&redis.Options{
 	DB:       0,  // Replace with your Redis database number
 })
 
-func inferStatus(body string) string {
-	trimmed := strings.TrimSpace(body)
-	switch {
-	case strings.Contains(trimmed, "Time limit exceeded"):
-		return statusTimeout
-	case strings.Contains(trimmed, "Traceback"):
-		return statusFailed
-	case strings.Contains(trimmed, "SyntaxError"):
-		return statusFailed
-	case strings.Contains(trimmed, "ReferenceError"):
-		return statusFailed
-	case strings.Contains(trimmed, "exit status"):
-		return statusFailed
-	default:
-		return statusCompleted
+type storedExecution struct {
+	Status    string `json:"status"`
+	Body      string `json:"body"`
+	ExitCode  *int   `json:"exitCode"`
+	TimedOut  bool   `json:"timedOut"`
+	Timeout   bool   `json:"timeout"`
+	Succeeded *bool  `json:"succeeded"`
+}
+
+func parseExecutionResult(raw string) (string, string) {
+	payload := storedExecution{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return statusCompleted, raw
 	}
+
+	body := payload.Body
+	if body == "" {
+		body = raw
+	}
+
+	switch payload.Status {
+	case statusCompleted, statusFailed, statusTimeout:
+		return payload.Status, body
+	}
+
+	if payload.TimedOut || payload.Timeout {
+		return statusTimeout, body
+	}
+
+	if payload.ExitCode != nil && *payload.ExitCode != 0 {
+		return statusFailed, body
+	}
+
+	if payload.Succeeded != nil && !*payload.Succeeded {
+		return statusFailed, body
+	}
+
+	return statusCompleted, body
 }
 
 func lookupExecutionStatus(parentContext context.Context, client *redis.Client, key string) (int, executionStatus) {
@@ -99,11 +120,13 @@ func lookupExecutionStatus(parentContext context.Context, client *redis.Client, 
 		}
 	}
 
+	status, body := parseExecutionResult(val)
+
 	return http.StatusOK, executionStatus{
 		CorrelationID: key,
 		Exists:        true,
-		Status:        inferStatus(val),
-		Body:          val,
+		Status:        status,
+		Body:          body,
 		UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 	}
 }

@@ -14,4 +14,7 @@ WORKDIR /app
 
 COPY --from=builder /app/runner .
 
+RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+USER sandbox
+
 CMD ["./runner"]

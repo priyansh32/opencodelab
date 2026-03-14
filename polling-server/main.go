@@ -31,7 +31,7 @@ type consumerResponse struct {
 	Body   string `json:"body,omitempty"`
 }
 
-func main() {
+func setupRouter(client *redis.Client) *gin.Engine {
 	r := gin.Default()
 
 	// Endpoint for the consumer to check if the key exists in Redis
@@ -46,7 +46,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
 		defer cancel()
 
-		val, err := redisClient.Get(ctx, key).Result()
+		val, err := client.Get(ctx, key).Result()
 		if errors.Is(err, redis.Nil) {
 			c.JSON(http.StatusOK, consumerResponse{Exists: false, Status: "queued"})
 			return
@@ -61,6 +61,11 @@ func main() {
 		// Key exists in Redis
 		c.JSON(http.StatusOK, consumerResponse{Exists: true, Status: "completed", Body: val})
 	})
+	return r
+}
+
+func main() {
+	r := setupRouter(redisClient)
 
 	// Start the server on port 8080 (can be any other port of your choice)
 	if err := r.Run(":8080"); err != nil {

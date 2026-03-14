@@ -146,11 +146,7 @@ Unless the user explicitly asks for implementation, audit mode stops after inves
 - Avoid destructive git commands such as `git reset --hard`, `git clean -fd`, or force-push unless explicitly requested.
 - When updating issues or PRs, prefer practical root cause and fix plan over long writeups.
 - If the user asks to open, update, merge, comment on, or close GitHub items, use `gh` unless they explicitly want draft text only.
-- After creating a PR, post a PR comment with exactly:
-  `/gemini review`
   unless the user explicitly says not to.
-- If Gemini or another bot leaves PR feedback, review all open PR threads for actionable suggestions. Apply only correct, in-scope changes. If changes are pushed in response, post:
-  `/gemini review`
 
 ## GitHub Auth
 

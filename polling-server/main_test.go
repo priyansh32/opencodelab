@@ -29,9 +29,7 @@ func TestConsumerReturnsExistsFalseWhenKeyMissing(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
 	}
 
-	var body struct {
-		Exists bool `json:"exists"`
-	}
+	var body executionStatus
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -39,9 +37,15 @@ func TestConsumerReturnsExistsFalseWhenKeyMissing(t *testing.T) {
 	if body.Exists {
 		t.Fatalf("expected exists=false for missing key")
 	}
+	if body.Status != statusQueued {
+		t.Fatalf("expected status %q, got %q", statusQueued, body.Status)
+	}
+	if body.Body != nil {
+		t.Fatalf("expected missing key response to omit body")
+	}
 }
 
-func TestConsumerReturnsBodyWhenKeyExists(t *testing.T) {
+func TestConsumerReturnsLegacyBodyWhenKeyExists(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	miniRedis := miniredis.RunT(t)
 	miniRedis.Set("exec-123", "program output")
@@ -60,10 +64,7 @@ func TestConsumerReturnsBodyWhenKeyExists(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
 	}
 
-	var body struct {
-		Exists bool   `json:"exists"`
-		Body   string `json:"body"`
-	}
+	var body executionStatus
 	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -71,8 +72,110 @@ func TestConsumerReturnsBodyWhenKeyExists(t *testing.T) {
 	if !body.Exists {
 		t.Fatalf("expected exists=true for existing key")
 	}
-	if body.Body != "program output" {
+	if body.Body == nil || *body.Body != "program output" {
 		t.Fatalf("expected body to match redis value")
+	}
+	if body.Status != statusCompleted {
+		t.Fatalf("expected status %q, got %q", statusCompleted, body.Status)
+	}
+}
+
+func TestConsumerUsesStoredExecutionMetadataStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	miniRedis := miniredis.RunT(t)
+	miniRedis.Set("exec-123", `{"schema":"opencodelab.execution.v1","status":"failed","body":"runtime failure"}`)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: miniRedis.Addr(),
+	})
+	defer client.Close()
+
+	router := setupRouter(client)
+	req := httptest.NewRequest(http.MethodGet, "/consumer?correlationID=exec-123", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+
+	var body executionStatus
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if body.Status != statusFailed {
+		t.Fatalf("expected status %q, got %q", statusFailed, body.Status)
+	}
+	if body.Body == nil || *body.Body != "runtime failure" {
+		t.Fatalf("expected body to match stored metadata body")
+	}
+}
+
+func TestConsumerDerivesTimeoutFromStoredMetadataFlag(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	miniRedis := miniredis.RunT(t)
+	miniRedis.Set("exec-123", `{"schema":"opencodelab.execution.v1","timedOut":true,"body":""}`)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: miniRedis.Addr(),
+	})
+	defer client.Close()
+
+	router := setupRouter(client)
+	req := httptest.NewRequest(http.MethodGet, "/consumer?correlationID=exec-123", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+
+	var body executionStatus
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if body.Status != statusTimeout {
+		t.Fatalf("expected status %q, got %q", statusTimeout, body.Status)
+	}
+	if body.Body == nil {
+		t.Fatalf("expected explicit empty body to be preserved")
+	}
+	if *body.Body != "" {
+		t.Fatalf("expected empty output body, got %q", *body.Body)
+	}
+}
+
+func TestConsumerDoesNotTrustUnscopedJSONAsMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	miniRedis := miniredis.RunT(t)
+	miniRedis.Set("exec-123", `{"status":"timeout","body":"spoofed"}`)
+
+	client := redis.NewClient(&redis.Options{
+		Addr: miniRedis.Addr(),
+	})
+	defer client.Close()
+
+	router := setupRouter(client)
+	req := httptest.NewRequest(http.MethodGet, "/consumer?correlationID=exec-123", nil)
+	res := httptest.NewRecorder()
+
+	router.ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, res.Code)
+	}
+
+	var body executionStatus
+	if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if body.Status != statusCompleted {
+		t.Fatalf("expected fallback status %q, got %q", statusCompleted, body.Status)
+	}
+	if body.Body == nil || *body.Body != `{"status":"timeout","body":"spoofed"}` {
+		t.Fatalf("expected raw body fallback for unscoped json payload")
 	}
 }
 

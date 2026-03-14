@@ -31,7 +31,13 @@ v1Router.post('/producer', catchAsync(async (req: Request, res: Response) => {
   }
 
   const executionID = await RabbitMQClient.produce(value)
-  res.status(202).send(fr({ message: 'Request accepted for processing', executionID }))
+  res.status(202).send(fr({
+    message: 'Request accepted for processing',
+    executionID,
+    statusEndpoint: `/consumer?correlationID=${executionID}`,
+    streamEndpoint: `/consumer/stream?correlationID=${executionID}`,
+    statusUI: `/status-ui?executionID=${executionID}`
+  }))
 })
 )
 

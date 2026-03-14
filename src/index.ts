@@ -1,4 +1,5 @@
 import express from 'express'
+import helmet from 'helmet'
 
 import './database'
 import logger from '@/utils/logger'
@@ -19,6 +20,7 @@ declare module 'express-serve-static-core' {
 
 const app = express()
 
+app.use(helmet())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 

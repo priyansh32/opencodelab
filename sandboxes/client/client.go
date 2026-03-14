@@ -21,7 +21,11 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	utils.FailOnError(err, "Failed to open a channel")
 
 	defer wg.Done()
-	defer ch.Close()
+	defer func() {
+		if closeErr := ch.Close(); closeErr != nil {
+			log.Printf("Failed to close consumer channel: %s", closeErr)
+		}
+	}()
 
 	dlxName := queueName + ".dlx"
 	dlqName := queueName + ".dlq"
@@ -73,14 +77,22 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 			queueName,
 		)
 
-		q, err = ch.QueueDeclare(
-			queueName, // name
-			true,      // durable
-			false,     // delete when unused
-			false,     // exclusive
-			false,     // no-wait
-			nil,
-		)
+		if closeErr := ch.Close(); closeErr != nil {
+			log.Printf("Failed to close mismatched queue declaration channel: %s", closeErr)
+		}
+
+		ch, err = conn.Channel()
+		if err == nil {
+			q, err = ch.QueueDeclare(
+				queueName, // name
+				true,      // durable
+				false,     // delete when unused
+				false,     // exclusive
+				false,     // no-wait
+				nil,
+			)
+		}
+
 	}
 	utils.FailOnError(err, "Failed to declare a queue")
 

@@ -1,4 +1,5 @@
 import express from 'express'
+import helmet from 'helmet'
 import path from 'path'
 
 import './database'
@@ -20,6 +21,7 @@ declare module 'express-serve-static-core' {
 
 const app = express()
 
+app.use(helmet())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 app.use('/status-ui', express.static(path.join(process.cwd(), 'public'), { index: 'status-ui.html' }))

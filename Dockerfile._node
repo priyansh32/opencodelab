@@ -14,4 +14,6 @@ WORKDIR /app
 
 COPY --from=builder /app/runner .
 
+USER node
+
 CMD ["./runner"]

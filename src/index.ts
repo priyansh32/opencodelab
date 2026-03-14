@@ -1,4 +1,5 @@
 import express from 'express'
+import path from 'path'
 
 import './database'
 import logger from '@/utils/logger'
@@ -21,11 +22,14 @@ const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use('/status-ui', express.static(path.join(process.cwd(), 'public'), { index: 'status-ui.html' }))
 
 app.use('/', routeHandler)
 app.use(errorHandler)
 
 app.listen(PORT, () => {
   logger.info(`Listening on PORT ${PORT}`)
-  void RabbitMQClient.initialize()
+  void RabbitMQClient.initialize().catch((error: Error) => {
+    logger.error('RabbitMQ startup initialization failed', error)
+  })
 })

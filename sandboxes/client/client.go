@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -28,16 +29,79 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	utils.FailOnError(err, "Failed to open a channel")
 
 	defer wg.Done()
-	defer ch.Close()
+	defer func() {
+		if closeErr := ch.Close(); closeErr != nil {
+			log.Printf("Failed to close consumer channel: %s", closeErr)
+		}
+	}()
+
+	dlxName := queueName + ".dlx"
+	dlqName := queueName + ".dlq"
+
+	err = ch.ExchangeDeclare(
+		dlxName, // name
+		"direct",
+		true,  // durable
+		false, // auto-delete
+		false, // internal
+		false, // no-wait
+		nil,
+	)
+	utils.FailOnError(err, "Failed to declare dead-letter exchange")
+
+	_, err = ch.QueueDeclare(
+		dlqName, // name
+		true,    // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	utils.FailOnError(err, "Failed to declare dead-letter queue")
+
+	err = ch.QueueBind(
+		dlqName,
+		queueName,
+		dlxName,
+		false,
+		nil,
+	)
+	utils.FailOnError(err, "Failed to bind dead-letter queue")
 
 	q, err := ch.QueueDeclare(
 		queueName, // name
-		false,     // durable
+		true,      // durable
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait
-		nil,       // arguments
+		amqp.Table{
+			"x-dead-letter-exchange":    dlxName,
+			"x-dead-letter-routing-key": queueName,
+		},
 	)
+	if err != nil && isQueueArgumentMismatch(err) {
+		log.Printf(
+			"Queue %q already exists without DLQ arguments; consuming legacy queue config to avoid startup failure",
+			queueName,
+		)
+
+		if closeErr := ch.Close(); closeErr != nil {
+			log.Printf("Failed to close mismatched queue declaration channel: %s", closeErr)
+		}
+
+		ch, err = conn.Channel()
+		if err == nil {
+			q, err = ch.QueueDeclare(
+				queueName, // name
+				true,      // durable
+				false,     // delete when unused
+				false,     // exclusive
+				false,     // no-wait
+				nil,
+			)
+		}
+
+	}
 	utils.FailOnError(err, "Failed to declare a queue")
 
 	err = ch.Qos(1, 0, false)
@@ -62,6 +126,15 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	}
 }
 
+func isQueueArgumentMismatch(err error) bool {
+	var amqpErr *amqp.Error
+	if !errors.As(err, &amqpErr) {
+		return false
+	}
+
+	return amqpErr.Code == 406
+}
+
 func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, executeCode func(string) utils.ExecutionResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
@@ -71,6 +144,9 @@ func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, execute
 		err := json.Unmarshal(d.Body, &messageBody)
 		if err != nil {
 			log.Printf("Error decoding JSON: %s", err)
+			if nackErr := d.Nack(false, false); nackErr != nil {
+				log.Printf("Failed to Nack malformed message: %s", nackErr)
+			}
 			continue
 		}
 		executionResult := executeCode(messageBody.Code)
@@ -85,7 +161,10 @@ func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, execute
 			Body:          executionResult.Body,
 		}
 
-		d.Ack(true)
+		if ackErr := d.Ack(false); ackErr != nil {
+			log.Printf("Failed to Ack message: %s", ackErr)
+			continue
+		}
 
 		responses <- response
 	}

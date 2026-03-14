@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +23,12 @@ type executionStatus struct {
 	Error         string `json:"error,omitempty"`
 }
 
+type redisExecutionRecord struct {
+	Schema string `json:"schema"`
+	Status string `json:"status"`
+	Body   string `json:"body"`
+}
+
 const (
 	statusCompleted          = "completed"
 	statusFailed             = "failed"
@@ -31,6 +36,7 @@ const (
 	statusQueued             = "queued"
 	statusInvalidRequest     = "invalid_request"
 	statusBackendUnavailable = "backend_unavailable"
+	executionSchemaV1        = "opencodelab.execution.v1"
 )
 
 var terminalStatuses = map[string]bool{
@@ -47,21 +53,21 @@ var redisClient = redis.NewClient(&redis.Options{
 	DB:       0,  // Replace with your Redis database number
 })
 
-func inferStatus(body string) string {
-	trimmed := strings.TrimSpace(body)
-	switch {
-	case strings.Contains(trimmed, "Time limit exceeded"):
-		return statusTimeout
-	case strings.Contains(trimmed, "Traceback"):
-		return statusFailed
-	case strings.Contains(trimmed, "SyntaxError"):
-		return statusFailed
-	case strings.Contains(trimmed, "ReferenceError"):
-		return statusFailed
-	case strings.Contains(trimmed, "exit status"):
-		return statusFailed
+func parseStoredExecutionRecord(raw string) (redisExecutionRecord, bool) {
+	var record redisExecutionRecord
+	if err := json.Unmarshal([]byte(raw), &record); err != nil {
+		return redisExecutionRecord{}, false
+	}
+
+	if record.Schema != executionSchemaV1 {
+		return redisExecutionRecord{}, false
+	}
+
+	switch record.Status {
+	case statusCompleted, statusFailed, statusTimeout, statusQueued:
+		return record, true
 	default:
-		return statusCompleted
+		return redisExecutionRecord{}, false
 	}
 }
 
@@ -99,10 +105,21 @@ func lookupExecutionStatus(parentContext context.Context, client *redis.Client, 
 		}
 	}
 
+	if record, ok := parseStoredExecutionRecord(val); ok {
+		return http.StatusOK, executionStatus{
+			CorrelationID: key,
+			Exists:        true,
+			Status:        record.Status,
+			Body:          record.Body,
+			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+
+	// Backward compatibility for legacy records stored as raw output strings.
 	return http.StatusOK, executionStatus{
 		CorrelationID: key,
 		Exists:        true,
-		Status:        inferStatus(val),
+		Status:        statusCompleted,
 		Body:          val,
 		UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 	}

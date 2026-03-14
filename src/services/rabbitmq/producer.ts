@@ -10,6 +10,7 @@ const queueMap: Record<string, string> = {
   javascript: 'node18_16',
   python: 'python310'
 }
+export const SUPPORTED_LANGUAGES = Object.keys(queueMap)
 
 export interface Code {
   language: string

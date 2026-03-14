@@ -121,7 +121,18 @@
         statusChip.textContent = status;
         statusChip.className = 'chip ' + status;
         updatedAt.textContent = payload.updatedAt ? ('updated: ' + payload.updatedAt) : '';
-        output.textContent = payload.body || payload.error || 'Waiting for execution status...';
+
+        if (payload.body !== undefined && payload.body !== null) {
+          output.textContent = payload.body === '' ? '(no output)' : payload.body;
+          return;
+        }
+
+        if (payload.error !== undefined && payload.error !== null) {
+          output.textContent = payload.error;
+          return;
+        }
+
+        output.textContent = 'Waiting for execution status...';
       }
 
       function startWatching() {

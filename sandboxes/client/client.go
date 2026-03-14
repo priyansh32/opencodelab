@@ -15,6 +15,14 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const executionSchemaV1 = "opencodelab.execution.v1"
+
+type redisExecutionRecord struct {
+	Schema string `json:"schema"`
+	Status string `json:"status"`
+	Body   string `json:"body"`
+}
+
 func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg *sync.WaitGroup) {
 	ch, err := conn.Channel()
 	utils.FailOnError(err, "Failed to open a channel")
@@ -54,7 +62,7 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	}
 }
 
-func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, executeCode func(string) string, wg *sync.WaitGroup) {
+func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, executeCode func(string) utils.ExecutionResult, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	for d := range ds {
@@ -65,10 +73,16 @@ func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, execute
 			log.Printf("Error decoding JSON: %s", err)
 			continue
 		}
+		executionResult := executeCode(messageBody.Code)
+		if executionResult.Status == "" {
+			executionResult.Status = utils.StatusCompleted
+		}
+
 		response := utils.Response{
 			ReplyTo:       d.ReplyTo,
 			CorrelationID: d.CorrelationId,
-			Body:          executeCode(messageBody.Code),
+			Status:        executionResult.Status,
+			Body:          executionResult.Body,
 		}
 
 		d.Ack(true)
@@ -88,12 +102,22 @@ func redisWorker(responses chan utils.Response, wg *sync.WaitGroup) {
 	defer client.Close()
 
 	for response := range responses {
-		err := client.Set(context.Background(), response.CorrelationID, response.Body, 10*time.Minute).Err()
+		record, err := json.Marshal(redisExecutionRecord{
+			Schema: executionSchemaV1,
+			Status: response.Status,
+			Body:   response.Body,
+		})
+		if err != nil {
+			log.Printf("Failed to encode execution record for %s: %v", response.CorrelationID, err)
+			continue
+		}
+
+		err = client.Set(context.Background(), response.CorrelationID, string(record), 10*time.Minute).Err()
 		utils.FailOnError(err, "Failed to set response in redis")
 	}
 }
 
-func Initialize(queueName string, executeCode func(string) string) {
+func Initialize(queueName string, executeCode func(string) utils.ExecutionResult) {
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	utils.FailOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()

@@ -7,7 +7,8 @@ const LOG_DIR = path.join(process.cwd(), 'logs')
 try {
   mkdirSync(LOG_DIR, { recursive: true })
 } catch (error) {
-  console.error('Failed to create logs directory', error)
+  console.error('Failed to create logs directory. Exiting.', error)
+  process.exit(1)
 }
 
 const prodLogger = createLogger({

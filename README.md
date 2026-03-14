@@ -9,7 +9,7 @@ This repository contains the full stack:
 - Redis-backed status store
 - Go polling/streaming API
 - Nginx entrypoint and routing
-- Lightweight execution status UI
+- Lightweight testing client UI
 
 ## Table of Contents
 
@@ -61,7 +61,7 @@ flowchart LR
     CppWorker[C++ Sandbox Worker\nGo runner + g++]
     Redis[(Redis)]
     Polling[Polling Server\nGo + Gin]
-    UI[Status UI\n/public/status-ui.html]
+    UI[Judge Console UI\n/public/test-client.html]
 
     Client -->|HTTP| Nginx
     Nginx -->|/| API
@@ -143,7 +143,7 @@ Main responsibilities:
 - API version extraction via `accept-version` header
 - Input validation for `/producer`
 - Queue publishing through RabbitMQ client
-- Static hosting of status UI (`/status-ui`)
+- Static hosting of single-page judge console (`/test-client`)
 
 Version routing:
 - Supported versions: `1`, `2`
@@ -269,7 +269,7 @@ Success response (`202 Accepted`):
     "executionID": "<uuid>",
     "statusEndpoint": "/consumer?correlationID=<uuid>",
     "streamEndpoint": "/consumer/stream?correlationID=<uuid>",
-    "statusUI": "/status-ui?executionID=<uuid>"
+    "testClientEndpoint": "/test-client?executionID=<uuid>"
   }
 }
 ```
@@ -320,9 +320,14 @@ Redis unavailable (`503`):
 - Emits JSON payload each second
 - Ends on terminal statuses (`completed`, `failed`, `timeout`) or non-200 lookup status
 
-### `GET /status-ui`
+### `GET /test-client`
 
-Serves static HTML UI for live execution tracking.
+Serves the single-page judge console for:
+- code submission
+- live stream watching with polling fallback
+- API probe actions and payload inspection
+- built-in safe and malicious hardening example profiles
+- large-output-safe viewing modes (tail/head+tail/capped full)
 
 ## Data Contracts
 
@@ -478,11 +483,12 @@ Polling-server and sandboxes currently log via standard output.
 
 ### UI observability
 
-`/status-ui` provides:
-- execution ID input
-- live status chip (`queued`, `completed`, `failed`, `timeout`)
-- updated timestamp
-- execution output/error pane
+`/test-client` provides:
+- code runner with language templates (`javascript`, `python`, `c`, `cpp`, `c++`)
+- hardening test examples (network probe, timeout probe, process burst)
+- execution watcher with SSE + polling fallback
+- API probe buttons for versioned root and consumer status checks
+- large-output-safe rendering modes and output download/copy tools
 
 ## Security Model
 
@@ -543,7 +549,7 @@ Potential next steps:
 │   ├── cpp/
 │   ├── python/
 │   └── utils/
-├── public/                    # Static status UI
+├── public/                    # Static test client UI
 ├── scripts/                   # Dev and GitHub helper scripts
 ├── docker-compose.yml
 ├── nginx.conf

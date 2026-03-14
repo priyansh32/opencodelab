@@ -83,7 +83,7 @@ for _ in $(seq 1 120); do
     echo "Stack is up."
     echo "API:        http://localhost/"
     echo "Polling:    http://localhost/consumer?correlationID=<id>"
-    echo "Status UI:  http://localhost/status-ui"
+    echo "Test UI:    http://localhost/test-client"
     exit 0
   fi
   sleep 1

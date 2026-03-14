@@ -76,7 +76,7 @@ func TestConsumerReturnsBodyWhenKeyExists(t *testing.T) {
 	}
 }
 
-func TestConsumerReturns500OnRedisError(t *testing.T) {
+func TestConsumerReturns503OnRedisError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	miniRedis := miniredis.RunT(t)
 
@@ -93,7 +93,7 @@ func TestConsumerReturns500OnRedisError(t *testing.T) {
 	res := httptest.NewRecorder()
 
 	router.ServeHTTP(res, req)
-	if res.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, res.Code)
+	if res.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, res.Code)
 	}
 }

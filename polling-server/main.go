@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -20,12 +21,26 @@ var redisClient = redis.NewClient(&redis.Options{
 	DB:       0,  // Replace with your Redis database number
 })
 
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
+type consumerResponse struct {
+	Exists bool   `json:"exists"`
+	Status string `json:"status"`
+	Body   string `json:"body,omitempty"`
+}
+
 func setupRouter(client *redis.Client) *gin.Engine {
 	r := gin.Default()
 
 	// Endpoint for the consumer to check if the key exists in Redis
 	r.GET("/consumer", func(c *gin.Context) {
 		key := c.Query("correlationID")
+		if key == "" {
+			c.JSON(http.StatusBadRequest, errorResponse{Error: "missing correlationID query parameter"})
+			return
+		}
 
 		// Check if the key exists in Redis
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
@@ -33,24 +48,18 @@ func setupRouter(client *redis.Client) *gin.Engine {
 
 		val, err := client.Get(ctx, key).Result()
 		if errors.Is(err, redis.Nil) {
-			c.JSON(http.StatusOK, gin.H{
-				"exists": false,
-			})
+			c.JSON(http.StatusOK, consumerResponse{Exists: false, Status: "queued"})
 			return
 		}
 
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Error checking key in Redis",
-			})
+			log.Printf("Redis lookup failed for %s: %v", key, err)
+			c.JSON(http.StatusServiceUnavailable, errorResponse{Error: "polling backend unavailable"})
 			return
 		}
 
 		// Key exists in Redis
-		c.JSON(http.StatusOK, gin.H{
-			"exists": true,
-			"body":   val,
-		})
+		c.JSON(http.StatusOK, consumerResponse{Exists: true, Status: "completed", Body: val})
 	})
 	return r
 }

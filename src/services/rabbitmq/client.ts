@@ -31,22 +31,28 @@ class RabbitMQClient {
 
   async initialize (): Promise<void> {
     if (this.isInitialized) return
-    if (this.initializationPromise !== undefined) {
-      await this.initializationPromise
-      return
-    }
+    if (this.initializationPromise === undefined) {
+      const initializationWork = (async () => {
+        try {
+          await this.connect()
+        } catch (error) {
+          this.isInitialized = false
+          logger.error('Failed to initialize RabbitMQ client', error)
+          throw new APIError(503, 'Queue service is currently unavailable')
+        }
+      })()
 
-    this.initializationPromise = this.connect()
+      this.initializationPromise = initializationWork
 
-    try {
-      await this.initializationPromise
-    } catch (error) {
-      this.isInitialized = false
-      logger.error('Failed to initialize RabbitMQ client', error)
-      throw new APIError(503, 'Queue service is currently unavailable')
-    } finally {
-      this.initializationPromise = undefined
+      try {
+        await initializationWork
+      } finally {
+        if (this.initializationPromise === initializationWork) {
+          this.initializationPromise = undefined
+        }
+      }
     }
+    await this.initializationPromise
   }
 
   async produce (data: Code): Promise<any> {

@@ -15,18 +15,27 @@ import (
 )
 
 type executionStatus struct {
-	CorrelationID string `json:"correlationID"`
-	Exists        bool   `json:"exists"`
-	Status        string `json:"status"`
-	Body          string `json:"body,omitempty"`
-	UpdatedAt     string `json:"updatedAt,omitempty"`
-	Error         string `json:"error,omitempty"`
+	CorrelationID string  `json:"correlationID"`
+	Exists        bool    `json:"exists"`
+	Status        string  `json:"status"`
+	Body          *string `json:"body,omitempty"`
+	UpdatedAt     string  `json:"updatedAt,omitempty"`
+	Error         string  `json:"error,omitempty"`
 }
 
 type redisExecutionRecord struct {
-	Schema string `json:"schema"`
-	Status string `json:"status"`
-	Body   string `json:"body"`
+	Schema    string  `json:"schema"`
+	Status    string  `json:"status"`
+	Body      *string `json:"body"`
+	ExitCode  *int    `json:"exitCode"`
+	TimedOut  bool    `json:"timedOut"`
+	Timeout   bool    `json:"timeout"`
+	Succeeded *bool   `json:"succeeded"`
+}
+
+type parsedExecutionRecord struct {
+	status string
+	body   *string
 }
 
 const (
@@ -53,22 +62,34 @@ var redisClient = redis.NewClient(&redis.Options{
 	DB:       0,  // Replace with your Redis database number
 })
 
-func parseStoredExecutionRecord(raw string) (redisExecutionRecord, bool) {
+func parseStoredExecutionRecord(raw string) (parsedExecutionRecord, bool) {
 	var record redisExecutionRecord
 	if err := json.Unmarshal([]byte(raw), &record); err != nil {
-		return redisExecutionRecord{}, false
+		return parsedExecutionRecord{}, false
 	}
 
 	if record.Schema != executionSchemaV1 {
-		return redisExecutionRecord{}, false
+		return parsedExecutionRecord{}, false
 	}
 
+	status := statusCompleted
 	switch record.Status {
 	case statusCompleted, statusFailed, statusTimeout, statusQueued:
-		return record, true
+		status = record.Status
 	default:
-		return redisExecutionRecord{}, false
+		if record.TimedOut || record.Timeout {
+			status = statusTimeout
+		} else if record.ExitCode != nil && *record.ExitCode != 0 {
+			status = statusFailed
+		} else if record.Succeeded != nil && !*record.Succeeded {
+			status = statusFailed
+		}
 	}
+
+	return parsedExecutionRecord{
+		status: status,
+		body:   record.Body,
+	}, true
 }
 
 func lookupExecutionStatus(parentContext context.Context, client *redis.Client, key string) (int, executionStatus) {
@@ -109,18 +130,19 @@ func lookupExecutionStatus(parentContext context.Context, client *redis.Client, 
 		return http.StatusOK, executionStatus{
 			CorrelationID: key,
 			Exists:        true,
-			Status:        record.Status,
-			Body:          record.Body,
+			Status:        record.status,
+			Body:          record.body,
 			UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 		}
 	}
 
 	// Backward compatibility for legacy records stored as raw output strings.
+	body := val
 	return http.StatusOK, executionStatus{
 		CorrelationID: key,
 		Exists:        true,
 		Status:        statusCompleted,
-		Body:          val,
+		Body:          &body,
 		UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 	}
 }

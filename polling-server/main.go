@@ -19,7 +19,7 @@ var redisClient = redis.NewClient(&redis.Options{
 	DB:       0,  // Replace with your Redis database number
 })
 
-func main() {
+func setupRouter(client *redis.Client) *gin.Engine {
 	r := gin.Default()
 
 	// Endpoint for the consumer to check if the key exists in Redis
@@ -30,7 +30,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 
-		val, err := redisClient.Get(ctx, key).Result()
+		val, err := client.Get(ctx, key).Result()
 		if err != nil {
 			// Key does not exist in Redis
 			c.JSON(http.StatusOK, gin.H{
@@ -44,6 +44,11 @@ func main() {
 			})
 		}
 	})
+	return r
+}
+
+func main() {
+	r := setupRouter(redisClient)
 
 	// Start the server on port 8080 (can be any other port of your choice)
 	if err := r.Run(":8080"); err != nil {

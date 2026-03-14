@@ -22,13 +22,49 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	defer wg.Done()
 	defer ch.Close()
 
+	dlxName := queueName + ".dlx"
+	dlqName := queueName + ".dlq"
+
+	err = ch.ExchangeDeclare(
+		dlxName, // name
+		"direct",
+		false, // durable
+		false, // auto-delete
+		false, // internal
+		false, // no-wait
+		nil,
+	)
+	utils.FailOnError(err, "Failed to declare dead-letter exchange")
+
+	_, err = ch.QueueDeclare(
+		dlqName, // name
+		false,   // durable
+		false,   // delete when unused
+		false,   // exclusive
+		false,   // no-wait
+		nil,     // arguments
+	)
+	utils.FailOnError(err, "Failed to declare dead-letter queue")
+
+	err = ch.QueueBind(
+		dlqName,
+		queueName,
+		dlxName,
+		false,
+		nil,
+	)
+	utils.FailOnError(err, "Failed to bind dead-letter queue")
+
 	q, err := ch.QueueDeclare(
 		queueName, // name
 		false,     // durable
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait
-		nil,       // arguments
+		amqp.Table{
+			"x-dead-letter-exchange":    dlxName,
+			"x-dead-letter-routing-key": queueName,
+		},
 	)
 	utils.FailOnError(err, "Failed to declare a queue")
 
@@ -63,6 +99,9 @@ func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, execute
 		err := json.Unmarshal(d.Body, &messageBody)
 		if err != nil {
 			log.Printf("Error decoding JSON: %s", err)
+			if nackErr := d.Nack(false, false); nackErr != nil {
+				log.Printf("Failed to Nack malformed message: %s", nackErr)
+			}
 			continue
 		}
 		response := utils.Response{
@@ -71,7 +110,10 @@ func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, execute
 			Body:          executeCode(messageBody.Code),
 		}
 
-		d.Ack(true)
+		if ackErr := d.Ack(false); ackErr != nil {
+			log.Printf("Failed to Ack message: %s", ackErr)
+			continue
+		}
 
 		responses <- response
 	}

@@ -3,9 +3,11 @@ import { type Request, type Response, Router } from 'express'
 import RabbitMQClient from '@/services/rabbitmq/client'
 import catchAsync from '@/utils/catchAsync'
 import path from 'path'
+import { readFileSync } from 'fs'
 
 const v1Router = Router()
 const statusUIPath = path.join(process.cwd(), 'public', 'status-ui.html')
+const statusUIContent = readFileSync(statusUIPath, 'utf8')
 
 v1Router.get('/', (req: Request, res: Response) => {
   res.status(200).send(fr({ message: 'Hello, world 1!', apiVersion: req.apiVersion }))
@@ -13,7 +15,7 @@ v1Router.get('/', (req: Request, res: Response) => {
 )
 
 v1Router.get('/status-ui', (_req: Request, res: Response) => {
-  res.sendFile(statusUIPath)
+  res.type('html').send(statusUIContent)
 })
 
 v1Router.post('/producer', catchAsync(async (req: Request, res: Response) => {

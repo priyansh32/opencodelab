@@ -6,15 +6,15 @@ COPY ./sandboxes .
 
 RUN go mod download
 
-RUN go build -o runner ./python/sandbox.go
+RUN go build -o runner ./cpp/sandbox.go
 
-FROM python:3.13-alpine
+# Stage 2: Build Sandbox Image
+FROM gcc:latest
 WORKDIR /app
 
 COPY --from=builder /app/runner .
-ENV PYTHON_EXECUTABLE=python3
 
-RUN addgroup -S sandbox && adduser -S sandbox -G sandbox
+RUN useradd -m sandbox
 USER sandbox
 
 CMD ["./runner"]

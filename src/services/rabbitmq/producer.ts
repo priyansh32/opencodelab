@@ -7,8 +7,11 @@ const TIMEOUT = 30000
 
 // temporary
 const queueMap: Record<string, string> = {
-  javascript: 'node18_16',
-  python: 'python310'
+  javascript: 'node24',
+  python: 'python313',
+  c: 'c_latest',
+  cpp: 'cpp_latest',
+  'c++': 'cpp_latest'
 }
 export const SUPPORTED_LANGUAGES = Object.keys(queueMap)
 

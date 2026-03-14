@@ -225,13 +225,13 @@ they are bad but they are minef
 var containerConfigs = map[string]func(code string) *container.Config{
 	"python": func(code string) *container.Config {
 		return &container.Config{
-			Image: "python:3.10-alpine3.18",
+			Image: "python:3.13-alpine",
 			Cmd:   []string{"python", "-c", code},
 		}
 	},
 	"javascript": func(code string) *container.Config {
 		return &container.Config{
-			Image: "node:18.16-alpine3.18",
+			Image: "node:24-alpine",
 			Cmd:   []string{"node", "-e", code},
 		}
 	},

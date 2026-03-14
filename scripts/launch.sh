@@ -64,6 +64,10 @@ service_healthy() {
 echo "Starting full stack with Docker Compose..."
 DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build -d
 
+# nginx can retain stale upstream IPs when app-server is recreated during build.
+# Recreate nginx so it resolves fresh service addresses.
+docker compose up -d --no-deps --force-recreate nginx >/dev/null
+
 echo "Waiting for services to become ready ..."
 for _ in $(seq 1 120); do
   if service_running nginx \
@@ -71,6 +75,8 @@ for _ in $(seq 1 120); do
     && service_running polling-server \
     && service_running node-sandbox \
     && service_running python-sandbox \
+    && service_running c-sandbox \
+    && service_running cpp-sandbox \
     && service_healthy redis-server \
     && service_healthy rabbitmq-server \
     && service_healthy database; then

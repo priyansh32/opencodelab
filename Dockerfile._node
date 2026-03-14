@@ -9,7 +9,7 @@ RUN go mod download
 RUN go build -o runner ./node/sandbox.go
 
 # Stage 2: Build Sandbox Image
-FROM node:alpine
+FROM node:24-alpine
 WORKDIR /app
 
 COPY --from=builder /app/runner .

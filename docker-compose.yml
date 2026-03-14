@@ -4,7 +4,7 @@ x-sandbox-defaults: &sandbox-defaults
     REDIS_URL: ${REDIS_URL:-redis-server:6379}
   read_only: true
   tmpfs:
-    - /tmp:size=64m,mode=1777
+    - /tmp:size=64m,mode=1777,exec
   security_opt:
     - no-new-privileges:true
   cap_drop:
@@ -110,6 +110,16 @@ services:
     <<: *sandbox-defaults
     build:
       dockerfile: Dockerfile._node
+
+  c-sandbox:
+    <<: *sandbox-defaults
+    build:
+      dockerfile: Dockerfile._c
+
+  cpp-sandbox:
+    <<: *sandbox-defaults
+    build:
+      dockerfile: Dockerfile._cpp
 
 volumes:
   rabbitmq-data:

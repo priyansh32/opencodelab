@@ -5,7 +5,19 @@ import { EventEmitter } from 'events'
 import APIError from '@/utils/APIError'
 import logger from '@/utils/logger'
 
-const RABBITMQ_URL = (process.env.RABBITMQ_URL != null) ? process.env.RABBITMQ_URL : 'amqp://localhost'
+const BASE_RABBITMQ_URL = (process.env.RABBITMQ_URL != null) ? process.env.RABBITMQ_URL : 'amqp://localhost'
+const FRAME_MAX_MIN = '8192'
+
+const normalizeRabbitMQURL = (url: string): string => {
+  const parsedURL = new URL(url)
+  if (parsedURL.searchParams.get('frameMax') == null) {
+    // RabbitMQ 4.x requires frame_max >= 8192.
+    parsedURL.searchParams.set('frameMax', FRAME_MAX_MIN)
+  }
+  return parsedURL.toString()
+}
+
+const RABBITMQ_URL = normalizeRabbitMQURL(BASE_RABBITMQ_URL)
 
 class RabbitMQClient {
   private constructor () { }

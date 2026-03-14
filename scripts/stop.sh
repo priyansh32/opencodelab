@@ -2,8 +2,8 @@
 
 # use this script to stop the dev environment
 
-docker stop mq db
+set -euo pipefail
 
-docker rm mq db
+docker rm -f mq-dev db-dev redis-dev >/dev/null 2>&1 || true
 
-docker network rm opencodelab-dev
+docker network rm opencodelab-dev >/dev/null 2>&1 || true

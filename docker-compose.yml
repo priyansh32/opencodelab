@@ -81,6 +81,17 @@ services:
       dockerfile: Dockerfile._python
     env_file:
       - .env
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: "0.50"
+    init: true
     networks:
       - opencodelab
     depends_on:
@@ -92,6 +103,17 @@ services:
       dockerfile: Dockerfile._node
     env_file:
       - .env
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    mem_limit: 256m
+    cpus: "0.50"
+    init: true
     networks:
       - opencodelab
     depends_on:

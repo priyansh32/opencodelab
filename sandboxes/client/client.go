@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -28,7 +29,7 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	err = ch.ExchangeDeclare(
 		dlxName, // name
 		"direct",
-		true, // durable
+		true,  // durable
 		false, // auto-delete
 		false, // internal
 		false, // no-wait
@@ -66,6 +67,21 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 			"x-dead-letter-routing-key": queueName,
 		},
 	)
+	if err != nil && isQueueArgumentMismatch(err) {
+		log.Printf(
+			"Queue %q already exists without DLQ arguments; consuming legacy queue config to avoid startup failure",
+			queueName,
+		)
+
+		q, err = ch.QueueDeclare(
+			queueName, // name
+			true,      // durable
+			false,     // delete when unused
+			false,     // exclusive
+			false,     // no-wait
+			nil,
+		)
+	}
 	utils.FailOnError(err, "Failed to declare a queue")
 
 	err = ch.Qos(1, 0, false)
@@ -88,6 +104,15 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 		fmt.Printf("Received a message: %s\n", d.Body)
 		ds <- d
 	}
+}
+
+func isQueueArgumentMismatch(err error) bool {
+	var amqpErr *amqp.Error
+	if !errors.As(err, &amqpErr) {
+		return false
+	}
+
+	return amqpErr.Code == 406
 }
 
 func sandboxWorker(ds chan amqp.Delivery, responses chan utils.Response, executeCode func(string) string, wg *sync.WaitGroup) {

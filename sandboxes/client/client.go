@@ -28,7 +28,7 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 	err = ch.ExchangeDeclare(
 		dlxName, // name
 		"direct",
-		false, // durable
+		true, // durable
 		false, // auto-delete
 		false, // internal
 		false, // no-wait
@@ -38,7 +38,7 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 
 	_, err = ch.QueueDeclare(
 		dlqName, // name
-		false,   // durable
+		true,    // durable
 		false,   // delete when unused
 		false,   // exclusive
 		false,   // no-wait
@@ -57,7 +57,7 @@ func consumer(conn *amqp.Connection, queueName string, ds chan amqp.Delivery, wg
 
 	q, err := ch.QueueDeclare(
 		queueName, // name
-		false,     // durable
+		true,      // durable
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait

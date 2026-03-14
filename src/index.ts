@@ -27,5 +27,7 @@ app.use(errorHandler)
 
 app.listen(PORT, () => {
   logger.info(`Listening on PORT ${PORT}`)
-  void RabbitMQClient.initialize()
+  void RabbitMQClient.initialize().catch((error: Error) => {
+    logger.error('RabbitMQ startup initialization failed', error)
+  })
 })

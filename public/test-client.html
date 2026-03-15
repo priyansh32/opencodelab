@@ -1478,11 +1478,22 @@
         pushLog(`watch -> ${executionId}`);
       }
 
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
       function addProbeResult(label, ok, statusText, detail) {
         const li = document.createElement('li');
+        const safeLabel = escapeHtml(label);
+        const safeDetail = escapeHtml(clampText(detail, 1600, 'probe detail capped'));
         li.innerHTML =
           `<span class="${ok ? 'probe-ok' : 'probe-fail'}">${ok ? 'PASS' : 'FAIL'}</span> ` +
-          `[${nowString()}] ${label} | ${statusText}<br>${clampText(detail, 1600, 'probe detail capped').replace(/</g, '&lt;')}`;
+          `[${nowString()}] ${safeLabel} | ${statusText}<br>${safeDetail}`;
         probeList.prepend(li);
 
         while (probeList.children.length > 30) {

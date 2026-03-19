@@ -71,6 +71,7 @@ docker compose up -d --no-deps --force-recreate nginx >/dev/null
 echo "Waiting for services to become ready ..."
 for _ in $(seq 1 120); do
   if service_running nginx \
+    && service_running client \
     && service_running app-server \
     && service_running polling-server \
     && service_running node-sandbox \
@@ -81,7 +82,9 @@ for _ in $(seq 1 120); do
     && service_healthy rabbitmq-server \
     && service_healthy database; then
     echo "Stack is up."
-    echo "API:        http://localhost/"
+    echo "Client:     http://localhost/"
+    echo "API:        http://localhost/api/"
+    echo "Submit API: http://localhost/producer"
     echo "Polling:    http://localhost/consumer?correlationID=<id>"
     echo "Test UI:    http://localhost/test-client"
     exit 0

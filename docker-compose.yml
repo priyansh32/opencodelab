@@ -30,7 +30,21 @@ services:
     networks:
       - opencodelab
     depends_on:
+      - client
       - app-server
+      - polling-server
+
+  client:
+    build:
+      context: ./client
+    environment:
+      PORT: ${CLIENT_PORT:-4173}
+      NODE_ENV: production
+    networks:
+      - opencodelab
+    depends_on:
+      - app-server
+      - polling-server
 
   app-server:
     build: .

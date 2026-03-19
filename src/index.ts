@@ -30,8 +30,7 @@ app.use(helmet({
 }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use('/status-ui', express.static(path.join(process.cwd(), 'public'), { index: 'status-ui.html' }))
-app.use('/client', express.static(path.join(process.cwd(), 'public'), { index: 'client.html' }))
+app.use('/test-client', express.static(path.join(process.cwd(), 'public'), { index: 'test-client.html' }))
 
 app.use('/', routeHandler)
 app.use(errorHandler)

@@ -36,7 +36,7 @@ v1Router.post('/producer', catchAsync(async (req: Request, res: Response) => {
     executionID,
     statusEndpoint: `/consumer?correlationID=${executionID}`,
     streamEndpoint: `/consumer/stream?correlationID=${executionID}`,
-    statusUI: `/status-ui?executionID=${executionID}`
+    testClientEndpoint: `/test-client?executionID=${executionID}`
   }))
 })
 )

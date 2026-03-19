@@ -1,0 +1,1673 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCodeLab Test Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #14161a;
+        --bg-2: #191c21;
+        --panel: #22252d;
+        --panel-2: #2a2e39;
+        --line: #3a4150;
+        --text: #e8eaf0;
+        --muted: #a8afbc;
+        --brand: #ffa116;
+        --brand-2: #ffbe55;
+        --ok: #00b8a3;
+        --warn: #f5a524;
+        --err: #ef5f5f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--text);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(1200px 600px at 0% -20%, #2b2f3a 0%, transparent 65%),
+          radial-gradient(1000px 700px at 100% -20%, #1f2430 0%, transparent 70%),
+          linear-gradient(180deg, var(--bg) 0%, #111318 100%);
+      }
+
+      .shell {
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 18px clamp(12px, 2.2vw, 40px) 24px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .topbar {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #242933 0%, #1f232c 100%);
+        padding: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: clamp(1.06rem, 2.4vw, 1.4rem);
+        letter-spacing: 0.01em;
+      }
+
+      .subtitle {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .topbar-links {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .link-pill {
+        border: 1px solid #4a5265;
+        background: #272c37;
+        color: #d2d8e6;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.82rem;
+        text-decoration: none;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 12px;
+        grid-template-columns: minmax(760px, 1.18fr) minmax(640px, 1fr);
+        min-width: 0;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, var(--panel) 0%, #1d2129 100%);
+        overflow: hidden;
+        min-width: 0;
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, var(--panel-2) 0%, #282d37 100%);
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: 0.015em;
+      }
+
+      .panel-body {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        color: var(--muted);
+        font-size: 0.79rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      select,
+      input,
+      textarea,
+      button {
+        font: inherit;
+      }
+
+      select,
+      input,
+      textarea {
+        width: 100%;
+        color: var(--text);
+        border: 1px solid #495164;
+        background: #181b23;
+        border-radius: 8px;
+      }
+
+      select,
+      input {
+        padding: 9px 10px;
+      }
+
+      textarea {
+        height: 400px;
+        min-height: 400px;
+        max-height: 400px;
+        resize: none;
+        overflow: auto;
+        padding: 12px;
+        line-height: 1.45;
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+        font-size: 0.9rem;
+      }
+
+      .btn {
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 8px 11px;
+        cursor: pointer;
+        color: #0f1217;
+        background: #c5ccd8;
+        font-weight: 600;
+      }
+
+      .btn:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+
+      .btn.primary {
+        background: linear-gradient(180deg, var(--brand-2) 0%, var(--brand) 100%);
+      }
+
+      .btn.ghost {
+        background: #303647;
+        color: #e3e8f4;
+        border-color: #4a5265;
+      }
+
+      .btn.tab.active {
+        background: #ffbd54;
+        color: #16191f;
+      }
+
+      .chips {
+        display: inline-flex;
+        gap: 7px;
+        flex-wrap: wrap;
+      }
+
+      .chip {
+        border: 1px solid #4a5265;
+        background: #262b35;
+        color: #d8deeb;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 0.76rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .chip.completed {
+        border-color: var(--ok);
+        color: var(--ok);
+      }
+
+      .chip.failed,
+      .chip.invalid_request,
+      .chip.backend_unavailable {
+        border-color: var(--err);
+        color: var(--err);
+      }
+
+      .chip.timeout {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+
+      .chip.queued,
+      .chip.idle {
+        border-color: #8f97aa;
+        color: #bec5d3;
+      }
+
+      .chip.streaming {
+        border-color: #5c95ff;
+        color: #8ab3ff;
+      }
+
+      .chip.polling {
+        border-color: #78b7ff;
+        color: #a8d1ff;
+      }
+
+      .chip.stopped,
+      .chip.disconnected {
+        border-color: #8690a4;
+        color: #b2bbcb;
+      }
+
+      .mono {
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .card {
+        border: 1px solid #41495a;
+        border-radius: 8px;
+        background: #1a1e26;
+        padding: 10px;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 0.86rem;
+        color: var(--muted);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      pre {
+        margin: 0;
+        border: 1px solid #424b5d;
+        border-radius: 8px;
+        background: #101319;
+        color: #dce2ee;
+        padding: 10px;
+        height: 220px;
+        min-height: 220px;
+        max-height: 220px;
+        max-width: 100%;
+        overflow: auto;
+        white-space: pre;
+        line-height: 1.4;
+        font-size: 0.84rem;
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+      }
+
+      #requestPayload,
+      #latestPayload {
+        height: 220px;
+        min-height: 220px;
+        max-height: 220px;
+      }
+
+      #outputPanel {
+        height: 420px;
+        min-height: 420px;
+        max-height: 420px;
+      }
+
+      pre.wrap {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .log-console {
+        margin: 0;
+        padding: 8px 10px;
+        border: 1px solid #3b4456;
+        border-radius: 7px;
+        background: #0b0f14;
+        color: #b7e4a6;
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        white-space: pre;
+        overflow: auto;
+        height: 140px;
+        min-height: 140px;
+        max-height: 140px;
+      }
+
+      .probe-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 6px;
+        height: 120px;
+        max-height: 120px;
+        overflow: auto;
+      }
+
+      .probe-list li {
+        border: 1px solid #404858;
+        border-radius: 7px;
+        background: #1a1e26;
+        padding: 7px 9px;
+        font-family: "JetBrains Mono", "Cascadia Code", monospace;
+        font-size: 0.78rem;
+      }
+
+      .probe-ok {
+        color: var(--ok);
+      }
+
+      .probe-fail {
+        color: var(--err);
+      }
+
+      .tools-drawer {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, var(--panel) 0%, #1d2129 100%);
+        overflow: hidden;
+      }
+
+      .tools-drawer > summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+        padding: 10px 12px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #d8deeb;
+        background: linear-gradient(180deg, var(--panel-2) 0%, #282d37 100%);
+        border-bottom: 1px solid transparent;
+      }
+
+      .tools-drawer > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .tools-drawer > summary::before {
+        content: "▸ ";
+        color: var(--brand-2);
+      }
+
+      .tools-drawer[open] > summary {
+        border-bottom-color: var(--line);
+      }
+
+      .tools-drawer[open] > summary::before {
+        content: "▾ ";
+      }
+
+      @media (max-width: 1180px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        textarea {
+          height: 300px;
+          min-height: 300px;
+          max-height: 300px;
+        }
+
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        #outputPanel {
+          height: 320px;
+          min-height: 320px;
+          max-height: 320px;
+        }
+      }
+
+      @media (min-width: 1900px) {
+        .workspace {
+          grid-template-columns: minmax(980px, 1.25fr) minmax(860px, 1fr);
+        }
+
+        textarea {
+          height: 460px;
+          min-height: 460px;
+          max-height: 460px;
+        }
+
+        #outputPanel {
+          height: 500px;
+          min-height: 500px;
+          max-height: 500px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1 class="title">OpenCodeLab Test Client</h1>
+          <p class="subtitle">
+            Single-page LeetCode-style harness for end-to-end testing, including safe and malicious hardening cases.
+          </p>
+        </div>
+        <nav class="topbar-links">
+          <a class="link-pill" href="/" target="_blank" rel="noreferrer">GET /</a>
+          <a class="link-pill" href="/test-client" target="_blank" rel="noreferrer">/test-client</a>
+          <a class="link-pill" href="/consumer" target="_blank" rel="noreferrer">/consumer</a>
+        </nav>
+      </header>
+
+      <section class="workspace">
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Editor</h2>
+            <div class="chips">
+              <span class="chip mono" id="executionIdChip">execution: -</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <div class="field" style="min-width: 220px; flex: 1 1 220px">
+                <label for="languageSelect">Language</label>
+                <select id="languageSelect">
+                  <option value="javascript">javascript</option>
+                  <option value="python">python</option>
+                  <option value="c">c</option>
+                  <option value="cpp">cpp</option>
+                  <option value="c++">c++</option>
+                </select>
+              </div>
+              <div class="field" style="min-width: 220px; flex: 1 1 220px">
+                <label for="watchIdInput">Watch Execution ID</label>
+                <input id="watchIdInput" class="mono" placeholder="paste executionID" />
+              </div>
+            </div>
+
+            <textarea id="codeInput" spellcheck="false"></textarea>
+
+            <div class="row">
+              <button class="btn primary" id="runButton" type="button">Run</button>
+              <button class="btn ghost" id="watchButton" type="button">Watch</button>
+              <button class="btn ghost" id="stopButton" type="button">Stop Watch</button>
+              <button class="btn ghost" id="clearButton" type="button">Clear Editor</button>
+            </div>
+
+            <div class="row">
+              <div class="field" style="min-width: 280px; flex: 1 1 280px">
+                <label for="exampleProfileSelect">Example Profile</label>
+                <select id="exampleProfileSelect">
+                  <option value="safe_basic">Safe: Basic</option>
+                  <option value="safe_large_output">Safe: Large Output</option>
+                  <option value="harden_network_probe">Hardening: Network Probe</option>
+                  <option value="harden_timeout">Hardening: Timeout Probe</option>
+                  <option value="harden_process_burst">Hardening: Process Burst</option>
+                </select>
+              </div>
+              <button class="btn ghost" id="loadTemplateButton" type="button">Load Selected Example</button>
+            </div>
+
+            <div class="split">
+              <div class="card">
+                <h3>Request Payload</h3>
+                <pre id="requestPayload">{}</pre>
+              </div>
+              <div class="card">
+                <h3>Latest Response/Event</h3>
+                <pre id="latestPayload">{}</pre>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h2>Watcher</h2>
+            <div class="chips">
+              <span class="chip idle" id="statusChip">idle</span>
+              <span class="chip stopped" id="streamChip">stopped</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="row">
+              <button class="btn tab active" id="viewTailButton" type="button">Tail</button>
+              <button class="btn tab" id="viewHeadTailButton" type="button">Head+Tail</button>
+              <button class="btn tab" id="viewFullButton" type="button">Full</button>
+              <button class="btn ghost" id="wrapButton" type="button">Wrap: Off</button>
+              <button class="btn ghost" id="scrollButton" type="button">Auto-scroll: On</button>
+            </div>
+
+            <div class="row">
+              <button class="btn ghost" id="copyOutputButton" type="button">Copy Output</button>
+              <button class="btn ghost" id="downloadOutputButton" type="button">Download Output</button>
+            </div>
+
+            <div class="meta" id="outputMeta">Output size: 0 chars | Updated: -</div>
+            <pre id="outputPanel">Submit code or watch an existing execution ID.</pre>
+          </div>
+        </article>
+      </section>
+
+      <section>
+        <details class="tools-drawer">
+          <summary>Advanced API Probes</summary>
+          <div class="panel-body">
+            <div class="row">
+              <button class="btn ghost" id="probeV1Button" type="button">Probe GET / (v1)</button>
+              <button class="btn ghost" id="probeV2Button" type="button">Probe GET / (v2)</button>
+              <button class="btn ghost" id="probeConsumerButton" type="button">Probe /consumer (current ID)</button>
+              <button class="btn primary" id="probeSmokeButton" type="button">Run Smoke Set</button>
+            </div>
+            <ul class="probe-list" id="probeList"></ul>
+          </div>
+        </details>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Event Log</h2>
+        </div>
+        <div class="panel-body">
+          <pre class="log-console" id="eventLog"></pre>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const state = {
+        source: undefined,
+        pollTimer: undefined,
+        pollingActive: false,
+        currentExecutionId: '',
+        status: 'idle',
+        streamState: 'stopped',
+        outputHead: '',
+        outputTail: '',
+        outputTotalChars: 0,
+        outputStoredChars: 0,
+        outputTruncated: false,
+        outputView: 'tail',
+        outputWrap: false,
+        autoScroll: true,
+        lastUpdatedAt: '-',
+        logLines: [],
+        renderQueued: false,
+        lastRenderedOutput: '',
+        lastRenderedMeta: '',
+      };
+
+      const MAX_LOG_ITEMS = 120;
+      const OUTPUT_STORE_LIMIT = 1200000;
+      const OUTPUT_STORE_HEAD = 600000;
+      const OUTPUT_STORE_TAIL = 600000;
+      const TAIL_CHARS = 200000;
+      const HEAD_CHARS = 90000;
+      const FULL_RENDER_CAP = 800000;
+      const PAYLOAD_PREVIEW_CAP = 120000;
+      const terminalStatuses = new Set(['completed', 'failed', 'timeout']);
+
+      const exampleTemplates = {
+        safe_basic: {
+          javascript: [
+            "const nums = [4, 8, 15, 16, 23, 42]",
+            'const total = nums.reduce((acc, n) => acc + n, 0)',
+            "console.log('count =', nums.length)",
+            "console.log('sum =', total)",
+            "console.log('avg =', (total / nums.length).toFixed(2))"
+          ].join('\n'),
+          python: [
+            'nums = [5, 10, 15, 20]',
+            'total = sum(nums)',
+            "print('count =', len(nums))",
+            "print('sum =', total)",
+            "print('avg =', round(total / len(nums), 2))"
+          ].join('\n'),
+          c: [
+            '#include <stdio.h>',
+            '',
+            'int main(void) {',
+            '  int nums[] = {3, 6, 9, 12};',
+            '  int size = sizeof(nums) / sizeof(nums[0]);',
+            '  int total = 0;',
+            '  for (int i = 0; i < size; i++) total += nums[i];',
+            '  printf("count = %d\\n", size);',
+            '  printf("sum = %d\\n", total);',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          cpp: [
+            '#include <iostream>',
+            '#include <vector>',
+            '',
+            'int main() {',
+            '  std::vector<int> nums = {7, 14, 21, 28};',
+            '  int total = 0;',
+            '  for (int n : nums) total += n;',
+            '  std::cout << "count = " << nums.size() << "\\n";',
+            '  std::cout << "sum = " << total << "\\n";',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          'c++': [
+            '#include <iostream>',
+            '#include <vector>',
+            '',
+            'int main() {',
+            '  std::vector<int> nums = {7, 14, 21, 28};',
+            '  int total = 0;',
+            '  for (int n : nums) total += n;',
+            '  std::cout << "count = " << nums.size() << "\\n";',
+            '  std::cout << "sum = " << total << "\\n";',
+            '  return 0;',
+            '}'
+          ].join('\n')
+        },
+        safe_large_output: {
+          javascript: [
+            'for (let i = 0; i < 12000; i++) {',
+            "  console.log(`line ${i} :: ${'x'.repeat(40)}`);",
+            '}'
+          ].join('\n'),
+          python: [
+            'for i in range(12000):',
+            "    print(f\"line {i} :: {'x' * 40}\")"
+          ].join('\n'),
+          c: [
+            '#include <stdio.h>',
+            '',
+            'int main(void) {',
+            '  for (int i = 0; i < 12000; i++) {',
+            '    printf("line %d :: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\n", i);',
+            '  }',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          cpp: [
+            '#include <iostream>',
+            '',
+            'int main() {',
+            '  for (int i = 0; i < 12000; i++) {',
+            '    std::cout << "line " << i << " :: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\\\n";',
+            '  }',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          'c++': [
+            '#include <iostream>',
+            '',
+            'int main() {',
+            '  for (int i = 0; i < 12000; i++) {',
+            '    std::cout << "line " << i << " :: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\\\\n";',
+            '  }',
+            '  return 0;',
+            '}'
+          ].join('\n')
+        },
+        harden_network_probe: {
+          javascript: [
+            "const net = require('net');",
+            'const targets = [',
+            "  ['redis-server', 6379],",
+            "  ['rabbitmq-server', 5672],",
+            "  ['database', 27017]",
+            '];',
+            '',
+            'function probe(host, port) {',
+            '  return new Promise((resolve) => {',
+            '    const sock = new net.Socket();',
+            "    let done = false;",
+            '    const finish = (state) => {',
+            '      if (done) return;',
+            '      done = true;',
+            '      sock.destroy();',
+            '      resolve(`${host}:${port} ${state}`);',
+            '    };',
+            '    sock.setTimeout(900);',
+            "    sock.once('connect', () => finish('CONNECT_OK'));",
+            "    sock.once('timeout', () => finish('TIMEOUT'));",
+            "    sock.once('error', (err) => finish(`ERROR:${err.code || 'ERR'}`));",
+            '    sock.connect(port, host);',
+            '  });',
+            '}',
+            '',
+            '(async () => {',
+            '  for (const [host, port] of targets) {',
+            '    console.log(await probe(host, port));',
+            '  }',
+            '})();'
+          ].join('\n'),
+          python: [
+            'import socket',
+            '',
+            "targets = [('redis-server', 6379), ('rabbitmq-server', 5672), ('database', 27017)]",
+            'for host, port in targets:',
+            '    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)',
+            '    sock.settimeout(0.9)',
+            '    try:',
+            '        sock.connect((host, port))',
+            "        print(f'{host}:{port} CONNECT_OK')",
+            '    except Exception as exc:',
+            "        print(f'{host}:{port} ERROR:{type(exc).__name__}')",
+            '    finally:',
+            '        sock.close()'
+          ].join('\n'),
+          c: [
+            '#include <stdio.h>',
+            '#include <string.h>',
+            '#include <unistd.h>',
+            '#include <sys/socket.h>',
+            '#include <sys/types.h>',
+            '#include <netdb.h>',
+            '#include <sys/time.h>',
+            '',
+            'int probe(const char *host, const char *port) {',
+            '  struct addrinfo hints, *res, *p;',
+            '  memset(&hints, 0, sizeof(hints));',
+            '  hints.ai_family = AF_UNSPEC;',
+            '  hints.ai_socktype = SOCK_STREAM;',
+            '  int rc = getaddrinfo(host, port, &hints, &res);',
+            '  if (rc != 0) {',
+            '    printf("%s:%s DNS_FAIL\\n", host, port);',
+            '    return 0;',
+            '  }',
+            '  int ok = 0;',
+            '  for (p = res; p != NULL; p = p->ai_next) {',
+            '    int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);',
+            '    if (fd < 0) continue;',
+            '    struct timeval tv = {0, 900000};',
+            '    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));',
+            '    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));',
+            '    if (connect(fd, p->ai_addr, p->ai_addrlen) == 0) {',
+            '      ok = 1;',
+            '      close(fd);',
+            '      break;',
+            '    }',
+            '    close(fd);',
+            '  }',
+            '  freeaddrinfo(res);',
+            '  printf("%s:%s %s\\n", host, port, ok ? "CONNECT_OK" : "CONNECT_FAIL");',
+            '  return ok;',
+            '}',
+            '',
+            'int main(void) {',
+            '  probe("redis-server", "6379");',
+            '  probe("rabbitmq-server", "5672");',
+            '  probe("database", "27017");',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          cpp: [
+            '#include <iostream>',
+            '#include <cstring>',
+            '#include <unistd.h>',
+            '#include <sys/socket.h>',
+            '#include <sys/types.h>',
+            '#include <netdb.h>',
+            '#include <sys/time.h>',
+            '',
+            'int probe(const char* host, const char* port) {',
+            '  struct addrinfo hints, *res, *p;',
+            '  std::memset(&hints, 0, sizeof(hints));',
+            '  hints.ai_family = AF_UNSPEC;',
+            '  hints.ai_socktype = SOCK_STREAM;',
+            '  int rc = getaddrinfo(host, port, &hints, &res);',
+            '  if (rc != 0) {',
+            '    std::cout << host << ":" << port << " DNS_FAIL\\\\n";',
+            '    return 0;',
+            '  }',
+            '  int ok = 0;',
+            '  for (p = res; p != nullptr; p = p->ai_next) {',
+            '    int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);',
+            '    if (fd < 0) continue;',
+            '    struct timeval tv{0, 900000};',
+            '    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));',
+            '    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));',
+            '    if (connect(fd, p->ai_addr, p->ai_addrlen) == 0) {',
+            '      ok = 1;',
+            '      close(fd);',
+            '      break;',
+            '    }',
+            '    close(fd);',
+            '  }',
+            '  freeaddrinfo(res);',
+            '  std::cout << host << ":" << port << " " << (ok ? "CONNECT_OK" : "CONNECT_FAIL") << "\\\\n";',
+            '  return ok;',
+            '}',
+            '',
+            'int main() {',
+            '  probe("redis-server", "6379");',
+            '  probe("rabbitmq-server", "5672");',
+            '  probe("database", "27017");',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          'c++': [
+            '#include <iostream>',
+            '#include <cstring>',
+            '#include <unistd.h>',
+            '#include <sys/socket.h>',
+            '#include <sys/types.h>',
+            '#include <netdb.h>',
+            '#include <sys/time.h>',
+            '',
+            'int probe(const char* host, const char* port) {',
+            '  struct addrinfo hints, *res, *p;',
+            '  std::memset(&hints, 0, sizeof(hints));',
+            '  hints.ai_family = AF_UNSPEC;',
+            '  hints.ai_socktype = SOCK_STREAM;',
+            '  int rc = getaddrinfo(host, port, &hints, &res);',
+            '  if (rc != 0) {',
+            '    std::cout << host << ":" << port << " DNS_FAIL\\\\n";',
+            '    return 0;',
+            '  }',
+            '  int ok = 0;',
+            '  for (p = res; p != nullptr; p = p->ai_next) {',
+            '    int fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);',
+            '    if (fd < 0) continue;',
+            '    struct timeval tv{0, 900000};',
+            '    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));',
+            '    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));',
+            '    if (connect(fd, p->ai_addr, p->ai_addrlen) == 0) {',
+            '      ok = 1;',
+            '      close(fd);',
+            '      break;',
+            '    }',
+            '    close(fd);',
+            '  }',
+            '  freeaddrinfo(res);',
+            '  std::cout << host << ":" << port << " " << (ok ? "CONNECT_OK" : "CONNECT_FAIL") << "\\\\n";',
+            '  return ok;',
+            '}',
+            '',
+            'int main() {',
+            '  probe("redis-server", "6379");',
+            '  probe("rabbitmq-server", "5672");',
+            '  probe("database", "27017");',
+            '  return 0;',
+            '}'
+          ].join('\n')
+        },
+        harden_timeout: {
+          javascript: [
+            "console.log('starting timeout probe')",
+            'while (true) {',
+            '  Math.sqrt(Math.random());',
+            '}'
+          ].join('\n'),
+          python: [
+            "print('starting timeout probe')",
+            'while True:',
+            '    pass'
+          ].join('\n'),
+          c: [
+            '#include <stdio.h>',
+            '',
+            'int main(void) {',
+            '  puts("starting timeout probe");',
+            '  while (1) {}',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          cpp: [
+            '#include <iostream>',
+            '',
+            'int main() {',
+            '  std::cout << "starting timeout probe\\\\n";',
+            '  while (true) {}',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          'c++': [
+            '#include <iostream>',
+            '',
+            'int main() {',
+            '  std::cout << "starting timeout probe\\\\n";',
+            '  while (true) {}',
+            '  return 0;',
+            '}'
+          ].join('\n')
+        },
+        harden_process_burst: {
+          javascript: [
+            "const { spawn } = require('child_process');",
+            'let launched = 0;',
+            'let failed = 0;',
+            'for (let i = 0; i < 300; i++) {',
+            '  try {',
+            "    const child = spawn('sh', ['-c', 'echo child']);",
+            "    child.on('error', () => {});",
+            '    launched++;',
+            '  } catch (err) {',
+            '    failed++;',
+            '    break;',
+            '  }',
+            '}',
+            "console.log('launched =', launched, 'failed =', failed);"
+          ].join('\n'),
+          python: [
+            'import subprocess',
+            '',
+            'launched = 0',
+            'failed = 0',
+            'for i in range(300):',
+            '    try:',
+            "        subprocess.Popen(['sh', '-c', 'echo child'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)",
+            '        launched += 1',
+            '    except Exception:',
+            '        failed += 1',
+            '        break',
+            "print('launched =', launched, 'failed =', failed)"
+          ].join('\n'),
+          c: [
+            '#include <stdio.h>',
+            '#include <unistd.h>',
+            '#include <sys/wait.h>',
+            '#include <stdlib.h>',
+            '',
+            'int main(void) {',
+            '  int launched = 0;',
+            '  int failed = 0;',
+            '  for (int i = 0; i < 300; i++) {',
+            '    pid_t pid = fork();',
+            '    if (pid == 0) {',
+            '      _exit(0);',
+            '    } else if (pid > 0) {',
+            '      launched++;',
+            '    } else {',
+            '      failed++;',
+            '      break;',
+            '    }',
+            '  }',
+            '  while (waitpid(-1, NULL, 0) > 0) {}',
+            '  printf("launched = %d failed = %d\\n", launched, failed);',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          cpp: [
+            '#include <iostream>',
+            '#include <unistd.h>',
+            '#include <sys/wait.h>',
+            '',
+            'int main() {',
+            '  int launched = 0;',
+            '  int failed = 0;',
+            '  for (int i = 0; i < 300; i++) {',
+            '    pid_t pid = fork();',
+            '    if (pid == 0) {',
+            '      _exit(0);',
+            '    } else if (pid > 0) {',
+            '      launched++;',
+            '    } else {',
+            '      failed++;',
+            '      break;',
+            '    }',
+            '  }',
+            '  while (waitpid(-1, nullptr, 0) > 0) {}',
+            '  std::cout << "launched = " << launched << " failed = " << failed << "\\\\n";',
+            '  return 0;',
+            '}'
+          ].join('\n'),
+          'c++': [
+            '#include <iostream>',
+            '#include <unistd.h>',
+            '#include <sys/wait.h>',
+            '',
+            'int main() {',
+            '  int launched = 0;',
+            '  int failed = 0;',
+            '  for (int i = 0; i < 300; i++) {',
+            '    pid_t pid = fork();',
+            '    if (pid == 0) {',
+            '      _exit(0);',
+            '    } else if (pid > 0) {',
+            '      launched++;',
+            '    } else {',
+            '      failed++;',
+            '      break;',
+            '    }',
+            '  }',
+            '  while (waitpid(-1, nullptr, 0) > 0) {}',
+            '  std::cout << "launched = " << launched << " failed = " << failed << "\\\\n";',
+            '  return 0;',
+            '}'
+          ].join('\n')
+        }
+      };
+
+      const languageSelect = document.getElementById('languageSelect');
+      const exampleProfileSelect = document.getElementById('exampleProfileSelect');
+      const codeInput = document.getElementById('codeInput');
+      const watchIdInput = document.getElementById('watchIdInput');
+      const runButton = document.getElementById('runButton');
+      const watchButton = document.getElementById('watchButton');
+      const stopButton = document.getElementById('stopButton');
+      const clearButton = document.getElementById('clearButton');
+      const loadTemplateButton = document.getElementById('loadTemplateButton');
+
+      const requestPayload = document.getElementById('requestPayload');
+      const latestPayload = document.getElementById('latestPayload');
+      const executionIdChip = document.getElementById('executionIdChip');
+      const statusChip = document.getElementById('statusChip');
+      const streamChip = document.getElementById('streamChip');
+      const outputPanel = document.getElementById('outputPanel');
+      const outputMeta = document.getElementById('outputMeta');
+      const eventLog = document.getElementById('eventLog');
+      const probeList = document.getElementById('probeList');
+
+      const viewTailButton = document.getElementById('viewTailButton');
+      const viewHeadTailButton = document.getElementById('viewHeadTailButton');
+      const viewFullButton = document.getElementById('viewFullButton');
+      const wrapButton = document.getElementById('wrapButton');
+      const scrollButton = document.getElementById('scrollButton');
+      const copyOutputButton = document.getElementById('copyOutputButton');
+      const downloadOutputButton = document.getElementById('downloadOutputButton');
+
+      const probeV1Button = document.getElementById('probeV1Button');
+      const probeV2Button = document.getElementById('probeV2Button');
+      const probeConsumerButton = document.getElementById('probeConsumerButton');
+      const probeSmokeButton = document.getElementById('probeSmokeButton');
+
+      function nowString() {
+        return new Date().toLocaleTimeString();
+      }
+
+      function pushLog(message) {
+        state.logLines.push(`[${nowString()}] ${message}`);
+        if (state.logLines.length > MAX_LOG_ITEMS) {
+          state.logLines.splice(0, state.logLines.length - MAX_LOG_ITEMS);
+        }
+
+        eventLog.textContent = state.logLines.join('\n');
+        eventLog.scrollTop = eventLog.scrollHeight;
+      }
+
+      function loadExample(profileKey, language) {
+        const profile = exampleTemplates[profileKey];
+        if (profile == null) {
+          pushLog(`unknown example profile: ${profileKey}`);
+          return;
+        }
+
+        const template = profile[language] ?? profile.cpp ?? profile.javascript;
+        if (template == null) {
+          pushLog(`no example found for profile ${profileKey} and language ${language}`);
+          return;
+        }
+
+        codeInput.value = template;
+        pushLog(`example loaded -> ${profileKey} (${language})`);
+      }
+
+      function clampText(text, cap, label) {
+        if (text.length <= cap) return text;
+        return `[${label}: showing first ${cap.toLocaleString()} of ${text.length.toLocaleString()} chars]\n\n${text.slice(0, cap)}`;
+      }
+
+      function setStatus(status) {
+        state.status = status || 'idle';
+        statusChip.textContent = state.status;
+        statusChip.className = `chip ${state.status}`;
+      }
+
+      function setStreamState(mode) {
+        state.streamState = mode;
+        streamChip.textContent = mode;
+        streamChip.className = `chip ${mode}`;
+      }
+
+      function setExecutionId(executionId) {
+        state.currentExecutionId = executionId || '';
+        executionIdChip.textContent = `execution: ${state.currentExecutionId || '-'}`;
+      }
+
+      function stopPolling() {
+        state.pollingActive = false;
+        if (state.pollTimer != null) {
+          clearTimeout(state.pollTimer);
+          state.pollTimer = undefined;
+        }
+      }
+
+      function stopStream() {
+        if (state.source != null) {
+          state.source.close();
+          state.source = undefined;
+        }
+      }
+
+      function stopWatching(reason) {
+        stopStream();
+        stopPolling();
+        setStreamState(reason || 'stopped');
+      }
+
+      function updateViewButtons() {
+        viewTailButton.classList.toggle('active', state.outputView === 'tail');
+        viewHeadTailButton.classList.toggle('active', state.outputView === 'headtail');
+        viewFullButton.classList.toggle('active', state.outputView === 'full');
+      }
+
+      function getStoredOutputComposite() {
+        if (!state.outputTruncated) {
+          return state.outputHead;
+        }
+
+        return state.outputHead +
+          '\n\n... output omitted in UI storage ...\n\n' +
+          state.outputTail;
+      }
+
+      function getExportOutput() {
+        if (!state.outputTruncated) {
+          return state.outputHead;
+        }
+
+        return `[output truncated in test client storage: showing ${state.outputStoredChars.toLocaleString()} of ${state.outputTotalChars.toLocaleString()} chars]\n\n` +
+          getStoredOutputComposite();
+      }
+
+      function queueRenderOutput() {
+        if (state.renderQueued) return;
+        state.renderQueued = true;
+
+        const schedule = typeof requestAnimationFrame === 'function'
+          ? requestAnimationFrame
+          : (cb) => setTimeout(cb, 0);
+
+        schedule(() => {
+          state.renderQueued = false;
+          renderOutputNow();
+        });
+      }
+
+      function renderOutputNow() {
+        const storedFull = getStoredOutputComposite();
+        let rendered = '';
+
+        if (state.outputTotalChars === 0) {
+          rendered = '(no output)';
+        } else if (state.outputView === 'tail') {
+          const tailSource = state.outputTruncated ? state.outputTail : storedFull;
+          if (tailSource.length > TAIL_CHARS) {
+            rendered = `[tail view: last ${TAIL_CHARS.toLocaleString()} chars of stored output]\n\n${tailSource.slice(-TAIL_CHARS)}`;
+          } else {
+            rendered = tailSource;
+          }
+
+          if (state.outputTruncated) {
+            rendered = `[total output: ${state.outputTotalChars.toLocaleString()} chars; stored: ${state.outputStoredChars.toLocaleString()} chars]\n\n` + rendered;
+          }
+        } else if (state.outputView === 'headtail') {
+          if (state.outputTruncated) {
+            rendered =
+              `[head+tail view from stored output: ${state.outputStoredChars.toLocaleString()} of ${state.outputTotalChars.toLocaleString()} chars]\n\n` +
+              state.outputHead +
+              '\n\n... output omitted in UI storage ...\n\n' +
+              state.outputTail;
+          } else if (storedFull.length > HEAD_CHARS * 2) {
+            rendered = `[head+tail view: first ${HEAD_CHARS.toLocaleString()} + last ${HEAD_CHARS.toLocaleString()} of ${storedFull.length.toLocaleString()} chars]\n\n` +
+              storedFull.slice(0, HEAD_CHARS) +
+              '\n\n... output omitted for stability ...\n\n' +
+              storedFull.slice(-HEAD_CHARS);
+          } else {
+            rendered = storedFull;
+          }
+        } else {
+          if (state.outputTruncated) {
+            rendered =
+              `[full view unavailable: output exceeds test client storage limit (${OUTPUT_STORE_LIMIT.toLocaleString()} chars)]\n` +
+              `[showing stored ${state.outputStoredChars.toLocaleString()} of total ${state.outputTotalChars.toLocaleString()} chars]\n\n` +
+              storedFull;
+          } else if (storedFull.length > FULL_RENDER_CAP) {
+            rendered = `[full view capped at ${FULL_RENDER_CAP.toLocaleString()} chars for UI stability. Download output for full text.]\n\n${storedFull.slice(0, FULL_RENDER_CAP)}`;
+          } else {
+            rendered = storedFull;
+          }
+        }
+
+        if (rendered !== state.lastRenderedOutput) {
+          outputPanel.textContent = rendered;
+          state.lastRenderedOutput = rendered;
+        }
+
+        outputPanel.classList.toggle('wrap', state.outputWrap);
+
+        const meta =
+          `Output size: ${state.outputTotalChars.toLocaleString()} chars | Stored: ${state.outputStoredChars.toLocaleString()} chars | View: ${state.outputView} | Updated: ${state.lastUpdatedAt}`;
+        if (meta !== state.lastRenderedMeta) {
+          outputMeta.textContent = meta;
+          state.lastRenderedMeta = meta;
+        }
+
+        if (state.autoScroll) {
+          outputPanel.scrollTop = outputPanel.scrollHeight;
+        }
+      }
+
+      function renderOutput() {
+        queueRenderOutput();
+      }
+
+      function setOutput(value) {
+        const full = value == null ? '' : String(value);
+        state.outputTotalChars = full.length;
+
+        if (full.length <= OUTPUT_STORE_LIMIT) {
+          state.outputTruncated = false;
+          state.outputHead = full;
+          state.outputTail = full;
+          state.outputStoredChars = full.length;
+        } else {
+          state.outputTruncated = true;
+          state.outputHead = full.slice(0, OUTPUT_STORE_HEAD);
+          state.outputTail = full.slice(-OUTPUT_STORE_TAIL);
+          state.outputStoredChars = state.outputHead.length + state.outputTail.length;
+        }
+
+        renderOutput();
+      }
+
+      function safeJSONStringify(value) {
+        try {
+          return JSON.stringify(value, null, 2);
+        } catch {
+          return String(value);
+        }
+      }
+
+      function previewPayload(target, value) {
+        const serialized = safeJSONStringify(value);
+        target.textContent = clampText(serialized, PAYLOAD_PREVIEW_CAP, 'payload preview capped');
+      }
+
+      function applyStatusPayload(payload, sourceType) {
+        if (payload == null || typeof payload !== 'object') {
+          pushLog(`${sourceType}: invalid payload shape`);
+          return;
+        }
+
+        previewPayload(latestPayload, payload);
+
+        const status = payload.status || 'queued';
+        if (status !== state.status) {
+          pushLog(`status -> ${status}`);
+        }
+        setStatus(status);
+
+        state.lastUpdatedAt = payload.updatedAt || nowString();
+
+        if (Object.prototype.hasOwnProperty.call(payload, 'body')) {
+          setOutput(payload.body);
+        } else if (Object.prototype.hasOwnProperty.call(payload, 'error')) {
+          setOutput(payload.error);
+        }
+
+        if (terminalStatuses.has(status)) {
+          stopWatching('stopped');
+          pushLog('terminal status reached; watcher stopped');
+        }
+      }
+
+      async function parseResponseBody(response) {
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return text;
+        }
+      }
+
+      async function fetchStatusOnce(executionId) {
+        const response = await fetch(`/consumer?correlationID=${encodeURIComponent(executionId)}`);
+        const payload = await parseResponseBody(response);
+        if (typeof payload === 'string') {
+          throw new Error(`non-json status response: ${payload.slice(0, 180)}`);
+        }
+        applyStatusPayload(payload, 'poll');
+      }
+
+      async function pollLoop(executionId) {
+        if (!state.pollingActive) return;
+
+        try {
+          await fetchStatusOnce(executionId);
+        } catch (error) {
+          pushLog(`poll error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+
+        if (!state.pollingActive || terminalStatuses.has(state.status)) {
+          return;
+        }
+
+        state.pollTimer = setTimeout(() => {
+          void pollLoop(executionId);
+        }, 1500);
+      }
+
+      function startPollingFallback(executionId) {
+        stopStream();
+        stopPolling();
+        state.pollingActive = true;
+        setStreamState('polling');
+        pushLog('stream interrupted, switched to polling fallback');
+        void pollLoop(executionId);
+      }
+
+      function startStream(executionId) {
+        stopWatching('connecting');
+        setStreamState('connecting');
+
+        state.source = new EventSource(`/consumer/stream?correlationID=${encodeURIComponent(executionId)}`);
+
+        state.source.onopen = () => {
+          setStreamState('streaming');
+          pushLog('stream connected');
+        };
+
+        state.source.addEventListener('status', (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            applyStatusPayload(payload, 'stream');
+          } catch {
+            pushLog('malformed SSE event payload');
+          }
+        });
+
+        state.source.onerror = () => {
+          stopStream();
+          if (!terminalStatuses.has(state.status)) {
+            startPollingFallback(executionId);
+          } else {
+            setStreamState('stopped');
+          }
+        };
+      }
+
+      async function submitCode() {
+        const language = languageSelect.value;
+        const code = codeInput.value;
+
+        if (code.trim() === '') {
+          pushLog('submit blocked: empty code');
+          setOutput('Code cannot be empty.');
+          return;
+        }
+
+        runButton.disabled = true;
+        setStatus('queued');
+        setStreamState('connecting');
+        state.lastUpdatedAt = nowString();
+        setOutput('Submitting request...');
+
+        const payload = { language, code };
+        previewPayload(requestPayload, payload);
+        pushLog(`submit -> ${language}`);
+
+        try {
+          const response = await fetch('/producer', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'accept-version': '1'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const responseBody = await parseResponseBody(response);
+          previewPayload(latestPayload, responseBody);
+
+          if (!response.ok) {
+            const message = typeof responseBody === 'object' && responseBody !== null
+              ? (responseBody.message || safeJSONStringify(responseBody))
+              : String(responseBody);
+            setOutput(`Request failed (${response.status}): ${message}`);
+            setStreamState('disconnected');
+            pushLog(`submit failed (${response.status})`);
+            return;
+          }
+
+          const executionId = responseBody?.data?.executionID;
+          if (typeof executionId !== 'string' || executionId === '') {
+            setOutput('Request accepted but executionID missing in response.');
+            setStreamState('disconnected');
+            pushLog('submit failed: missing executionID');
+            return;
+          }
+
+          watchIdInput.value = executionId;
+          setExecutionId(executionId);
+          startStream(executionId);
+          setOutput('Accepted. Waiting for execution output...');
+          pushLog(`execution created: ${executionId}`);
+        } catch (error) {
+          setOutput(`Network error: ${error instanceof Error ? error.message : String(error)}`);
+          setStreamState('disconnected');
+          pushLog('submit network error');
+        } finally {
+          runButton.disabled = false;
+          renderOutput();
+        }
+      }
+
+      function watchExecution() {
+        const executionId = watchIdInput.value.trim();
+        if (executionId === '') {
+          pushLog('watch blocked: empty execution ID');
+          return;
+        }
+
+        setExecutionId(executionId);
+        setStatus('queued');
+        startStream(executionId);
+        pushLog(`watch -> ${executionId}`);
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function addProbeResult(label, ok, statusText, detail) {
+        const li = document.createElement('li');
+        const safeLabel = escapeHtml(label);
+        const safeDetail = escapeHtml(clampText(detail, 1600, 'probe detail capped'));
+        li.innerHTML =
+          `<span class="${ok ? 'probe-ok' : 'probe-fail'}">${ok ? 'PASS' : 'FAIL'}</span> ` +
+          `[${nowString()}] ${safeLabel} | ${statusText}<br>${safeDetail}`;
+        probeList.prepend(li);
+
+        while (probeList.children.length > 30) {
+          probeList.removeChild(probeList.lastChild);
+        }
+      }
+
+      async function runProbe(label, fn) {
+        const started = performance.now();
+        try {
+          const response = await fn();
+          const body = await parseResponseBody(response);
+          const elapsed = Math.round(performance.now() - started);
+          addProbeResult(
+            label,
+            response.ok,
+            `${response.status} in ${elapsed}ms`,
+            typeof body === 'string' ? body : safeJSONStringify(body)
+          );
+        } catch (error) {
+          addProbeResult(label, false, 'error', error instanceof Error ? error.message : String(error));
+        }
+      }
+
+      async function probeV1() {
+        await runProbe('GET / (accept-version:1)', () => fetch('/', { headers: { 'accept-version': '1' } }));
+      }
+
+      async function probeV2() {
+        await runProbe('GET / (accept-version:2)', () => fetch('/', { headers: { 'accept-version': '2' } }));
+      }
+
+      async function probeConsumerCurrent() {
+        const executionId = state.currentExecutionId || watchIdInput.value.trim();
+        if (!executionId) {
+          addProbeResult('GET /consumer', false, 'skipped', 'No execution ID available');
+          return;
+        }
+
+        await runProbe(`GET /consumer?correlationID=${executionId}`, () =>
+          fetch(`/consumer?correlationID=${encodeURIComponent(executionId)}`)
+        );
+      }
+
+      async function probeSmoke() {
+        probeSmokeButton.disabled = true;
+        await probeV1();
+        await probeV2();
+        await probeConsumerCurrent();
+        probeSmokeButton.disabled = false;
+      }
+
+      runButton.addEventListener('click', () => {
+        void submitCode();
+      });
+
+      watchButton.addEventListener('click', () => {
+        watchExecution();
+      });
+
+      stopButton.addEventListener('click', () => {
+        stopWatching('stopped');
+        pushLog('watcher stopped manually');
+      });
+
+      clearButton.addEventListener('click', () => {
+        codeInput.value = '';
+        pushLog('editor cleared');
+      });
+
+      loadTemplateButton.addEventListener('click', () => {
+        const profile = exampleProfileSelect.value;
+        const selected = languageSelect.value;
+        loadExample(profile, selected);
+      });
+
+      languageSelect.addEventListener('change', () => {
+        pushLog(`language switched -> ${languageSelect.value}`);
+      });
+
+      watchIdInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          watchExecution();
+        }
+      });
+
+      viewTailButton.addEventListener('click', () => {
+        state.outputView = 'tail';
+        updateViewButtons();
+        renderOutput();
+      });
+
+      viewHeadTailButton.addEventListener('click', () => {
+        state.outputView = 'headtail';
+        updateViewButtons();
+        renderOutput();
+      });
+
+      viewFullButton.addEventListener('click', () => {
+        state.outputView = 'full';
+        updateViewButtons();
+        renderOutput();
+      });
+
+      wrapButton.addEventListener('click', () => {
+        state.outputWrap = !state.outputWrap;
+        wrapButton.textContent = `Wrap: ${state.outputWrap ? 'On' : 'Off'}`;
+        renderOutput();
+      });
+
+      scrollButton.addEventListener('click', () => {
+        state.autoScroll = !state.autoScroll;
+        scrollButton.textContent = `Auto-scroll: ${state.autoScroll ? 'On' : 'Off'}`;
+      });
+
+      copyOutputButton.addEventListener('click', async () => {
+        try {
+          const exportText = getExportOutput();
+          await navigator.clipboard.writeText(exportText);
+          pushLog(`output copied (${state.outputTotalChars.toLocaleString()} chars total)`);
+        } catch {
+          pushLog('copy output failed');
+        }
+      });
+
+      downloadOutputButton.addEventListener('click', () => {
+        const blob = new Blob([getExportOutput()], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `execution-${state.currentExecutionId || 'output'}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        pushLog(`output downloaded (${state.outputTotalChars.toLocaleString()} chars total)`);
+      });
+
+      probeV1Button.addEventListener('click', () => {
+        void probeV1();
+      });
+
+      probeV2Button.addEventListener('click', () => {
+        void probeV2();
+      });
+
+      probeConsumerButton.addEventListener('click', () => {
+        void probeConsumerCurrent();
+      });
+
+      probeSmokeButton.addEventListener('click', () => {
+        void probeSmoke();
+      });
+
+      function bootstrap() {
+        const selected = languageSelect.value;
+        loadExample('safe_basic', selected);
+        setExecutionId('');
+        setStatus('idle');
+        setStreamState('stopped');
+        updateViewButtons();
+        renderOutput();
+
+        const url = new URL(window.location.href);
+        const presetExecutionId = url.searchParams.get('executionID');
+        if (presetExecutionId) {
+          watchIdInput.value = presetExecutionId;
+          watchExecution();
+        }
+
+        pushLog('console ready');
+      }
+
+      bootstrap();
+    </script>
+  </body>
+</html>

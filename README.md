@@ -3,13 +3,14 @@
 OpenCodeLab is a multi-service code-execution platform that accepts source code, runs it in language-specific sandbox workers, and exposes execution status over polling and server-sent events (SSE).
 
 This repository contains the full stack:
+- Production web client (`client/`, Vite + React + TypeScript + Monaco)
 - Node.js API server (TypeScript + Express)
 - RabbitMQ-backed execution queue
 - Go sandbox workers (Node.js, Python, C, C++ runtimes)
 - Redis-backed status store
 - Go polling/streaming API
 - Nginx entrypoint and routing
-- Lightweight execution status UI
+- Lightweight testing client UI
 
 ## Table of Contents
 
@@ -50,8 +51,9 @@ Execution is decoupled from request/response latency. This keeps the API respons
 
 ```mermaid
 flowchart LR
-    Client[Client / Browser / CLI]
+    Browser[Client Browser]
     Nginx[Nginx Gateway]
+    WebApp[Web Client\nVite + React]
     API[Node API Server\nExpress + TypeScript]
     Mongo[(MongoDB)]
     MQ[(RabbitMQ)]
@@ -61,10 +63,11 @@ flowchart LR
     CppWorker[C++ Sandbox Worker\nGo runner + g++]
     Redis[(Redis)]
     Polling[Polling Server\nGo + Gin]
-    UI[Status UI\n/public/status-ui.html]
+    LegacyUI[Legacy Judge UI\n/public/test-client.html]
 
-    Client -->|HTTP| Nginx
-    Nginx -->|/| API
+    Browser -->|HTTP| Nginx
+    Nginx -->|/| WebApp
+    Nginx -->|/producer + /api/*| API
     Nginx -->|/consumer*| Polling
     API -->|Mongoose| Mongo
     API -->|publish code job| MQ
@@ -77,14 +80,14 @@ flowchart LR
     CWorker -->|persist status/output| Redis
     CppWorker -->|persist status/output| Redis
     Polling -->|read status| Redis
-    API -->|serves static| UI
-    UI -->|SSE /consumer/stream| Nginx
+    API -->|serves static| LegacyUI
+    WebApp -->|/producer + /consumer*| Nginx
 ```
 
 ### Runtime boundaries
 
 - Public entrypoint: Nginx (`:80` in Docker Compose)
-- Internal services on Docker network: API, polling-server, Redis, RabbitMQ, MongoDB, sandboxes
+- Internal services on Docker network: client, API, polling-server, Redis, RabbitMQ, MongoDB, sandboxes
 - API and polling are separate processes and codebases
 
 ## Execution Flow
@@ -143,7 +146,7 @@ Main responsibilities:
 - API version extraction via `accept-version` header
 - Input validation for `/producer`
 - Queue publishing through RabbitMQ client
-- Static hosting of status UI (`/status-ui`)
+- Static hosting of single-page judge console (`/test-client`)
 
 Version routing:
 - Supported versions: `1`, `2`
@@ -204,10 +207,12 @@ Compatibility logic:
 
 Routing policy:
 - `/consumer*` -> polling-server
-- everything else (`/`) -> API server
+- `/producer` and `/api/*` -> API server
+- `/test-client` -> API static legacy test UI
+- everything else (`/`) -> dedicated client container
 
 CORS policy:
-- Allows origin `http://localhost:3000`
+- Allows `http://localhost` and common dev ports (`3000`, `4173`, `5173`)
 - Handles `OPTIONS` preflight with `204`
 
 ## API Reference
@@ -221,7 +226,7 @@ Rules:
 - `accept-version: 2` -> v2 router
 - missing/unsupported -> defaults to v1
 
-### `GET /`
+### `GET /api/`
 
 Returns version-specific health-style payload.
 
@@ -237,7 +242,7 @@ Example (v1 default):
 }
 ```
 
-### `GET /` with `accept-version: 2`
+### `GET /api/` with `accept-version: 2`
 
 Returns v2 payload unless `ENABLE_V2_FAULT_TEST=true`, in which case it returns an error.
 
@@ -269,7 +274,7 @@ Success response (`202 Accepted`):
     "executionID": "<uuid>",
     "statusEndpoint": "/consumer?correlationID=<uuid>",
     "streamEndpoint": "/consumer/stream?correlationID=<uuid>",
-    "statusUI": "/status-ui?executionID=<uuid>"
+    "testClientEndpoint": "/test-client?executionID=<uuid>"
   }
 }
 ```
@@ -320,9 +325,14 @@ Redis unavailable (`503`):
 - Emits JSON payload each second
 - Ends on terminal statuses (`completed`, `failed`, `timeout`) or non-200 lookup status
 
-### `GET /status-ui`
+### `GET /test-client`
 
-Serves static HTML UI for live execution tracking.
+Serves the single-page judge console for:
+- code submission
+- live stream watching with polling fallback
+- API probe actions and payload inspection
+- built-in safe and malicious hardening example profiles
+- large-output-safe viewing modes (tail/head+tail/capped full)
 
 ## Data Contracts
 
@@ -362,6 +372,7 @@ Key properties:
 | `REDIS_URL` | none | polling-server + sandboxes | Required for status lookup/persistence |
 | `MAX_CODE_LENGTH` | `10000` | API server | Maximum request body `code` length |
 | `ENABLE_V2_FAULT_TEST` | `false` | API server v2 | Enables forced v2 error path |
+| `CLIENT_PORT` | `4173` | client container | Internal client container port (`PORT`) |
 
 ### Example local env (`.env.dev`)
 
@@ -374,6 +385,14 @@ DB_URL=mongodb://localhost:27017/opencodelab-test
 RABBITMQ_URL=amqp://guest:guest@localhost:5672
 REDIS_URL=localhost:6379
 ```
+
+### Client environment
+
+Client-specific variables live in `client/.env.example` and include:
+- `VITE_EXECUTOR_BASE_URL`
+- `VITE_ACCEPT_VERSION`
+- `VITE_MAX_CODE_LENGTH`
+- `VITE_PROXY_TARGET`
 
 ## Local Development
 
@@ -406,7 +425,23 @@ docker compose up --build
 ```
 
 Entry point:
-- `http://localhost` via Nginx
+- `http://localhost` -> production client UI
+- `http://localhost/producer` -> submit API
+- `http://localhost/consumer?correlationID=<id>` -> status API
+- `http://localhost/test-client` -> legacy test harness
+
+### Option C: Frontend-only local loop
+
+When the Docker stack is already running:
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+- Client dev URL: `http://localhost:5173`
+- Requests proxy to `http://localhost` by default (`VITE_PROXY_TARGET`)
 
 Teardown:
 
@@ -424,6 +459,7 @@ docker compose down -v
 
 Services in `docker-compose.yml`:
 - `nginx`
+- `client`
 - `app-server`
 - `polling-server`
 - `rabbitmq-server`
@@ -453,6 +489,15 @@ Covers:
 - API version extraction middleware
 - producer language validation and queue-target behavior
 
+### Client checks
+
+```bash
+cd client
+npm run lint
+npm run typecheck
+npm run build
+```
+
 ### Go tests (polling-server)
 
 ```bash
@@ -478,11 +523,12 @@ Polling-server and sandboxes currently log via standard output.
 
 ### UI observability
 
-`/status-ui` provides:
-- execution ID input
-- live status chip (`queued`, `completed`, `failed`, `timeout`)
-- updated timestamp
-- execution output/error pane
+`/test-client` provides:
+- code runner with language templates (`javascript`, `python`, `c`, `cpp`, `c++`)
+- hardening test examples (network probe, timeout probe, process burst)
+- execution watcher with SSE + polling fallback
+- API probe buttons for versioned root and consumer status checks
+- large-output-safe rendering modes and output download/copy tools
 
 ## Security Model
 
@@ -535,6 +581,7 @@ Potential next steps:
 │   ├── routes/
 │   ├── services/rabbitmq/
 │   └── utils/
+├── client/                    # Production web client (Vite + React + Monaco)
 ├── polling-server/            # Go polling + SSE service
 ├── sandboxes/                 # Go workers + runtime-specific executors
 │   ├── client/
@@ -543,7 +590,7 @@ Potential next steps:
 │   ├── cpp/
 │   ├── python/
 │   └── utils/
-├── public/                    # Static status UI
+├── public/                    # Static test client UI
 ├── scripts/                   # Dev and GitHub helper scripts
 ├── docker-compose.yml
 ├── nginx.conf
